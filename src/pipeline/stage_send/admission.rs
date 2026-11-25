@@ -21,6 +21,12 @@ pub(super) fn record_unsent_next(
 ) {
     if let Err(AttemptError::Next(error)) = result {
         if ctx.route_attempt_count() == before.0 {
+            if crate::upstream::vercel_credit_guard::local_denial(error)
+                || crate::upstream::cloudflare_neuron_guard::local_denial(error)
+            {
+                ctx.quota_fallback_origin
+                    .get_or_insert_with(|| candidate.provider_account_id.clone());
+            }
             // Preserve both the legacy default and any previous actual response.
             // Stop/success/sent outcomes retain their own observation.
             ctx.observed_upstream_status = before.1;
@@ -98,9 +104,11 @@ pub(super) async fn record_running(
     payload: &crate::routing::candidate::ProviderAccountPayload,
     model: &str,
 ) {
-    // SAP prepares OAuth later. Its exact identity is published by actual-attempt
-    // finalization, never a sticky SQL attribution left by a zero-send rejection.
-    if crate::protocol::sap_aicore::owns_payload(payload) {
+    // OAuth and quota preparation may still reject. Publish the exact identity
+    // through actual-attempt finalization, not a persistent zero-send attribution.
+    if crate::protocol::sap_aicore::owns_payload(payload)
+        || stage_rate_limit::quota_send::guarded(payload)
+    {
         return;
     }
     if let (Some(local), Some(audit_id)) = (&state.local_runtime, &ctx.request_audit_id) {

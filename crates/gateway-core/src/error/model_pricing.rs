@@ -1,11 +1,7 @@
 //! Known relay pricing compilation failures occur at admission, before inference.
 use super::{ErrorKind, FallbackHint, GatewayError};
 
-pub fn is_model_pricing_failure(
-    status: u16,
-    code: Option<&str>,
-    message: Option<&str>,
-) -> bool {
+pub fn is_model_pricing_failure(status: u16, code: Option<&str>, message: Option<&str>) -> bool {
     if !matches!(status, 400 | 500 | 502 | 503)
         || !matches!(code.map(str::trim), None | Some("" | "model_price_error"))
     {

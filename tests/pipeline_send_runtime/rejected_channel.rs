@@ -71,6 +71,49 @@ async fn output_then_error_in_same_chunk_is_forwarded_without_replay() {
 }
 
 #[tokio::test]
+async fn created_response_id_then_model_error_never_replays_the_tool_request() {
+    let first = Upstream::start(StatusCode::OK, true, concat!(
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_started\"}}\n\n",
+        "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":null,\"type\":\"model_not_found\",\"message\":\"unavailable\"}}}\n\n"
+    )).await;
+    let next = Upstream::start(StatusCode::OK, true, SSE_REPLY).await;
+    let fixture = TestState::new();
+    let mut route = candidate(&first, "first");
+    route.payload.responses_path = Some("/v1/responses".into());
+    route.payload.chat_completions_path = None;
+    let mut ctx = context(true, vec![route, candidate(&next, "next")]);
+    ctx.canonical_req.endpoint_kind = EndpointKind::Responses;
+    ctx.canonical_req.tools.push(CanonicalTool {
+        tool_type: "function".into(),
+        name: Some("shell".into()),
+        description: None,
+        input_schema: None,
+        raw: Default::default(),
+    });
+    authorize_candidates(&mut ctx);
+    let PipelineOutput::Sse(stream) = timeout(DEADLINE, stage_send::run(&mut ctx, &fixture.state))
+        .await
+        .unwrap()
+        .unwrap()
+    else {
+        panic!("expected original stream")
+    };
+    let chunks = timeout(DEADLINE, stream.collect::<Vec<_>>()).await.unwrap();
+    assert!(chunks.iter().any(Result::is_err));
+    assert_eq!(
+        (
+            first.requests().len(),
+            next.requests().len(),
+            ctx.route_attempt_count()
+        ),
+        (1, 0, 1)
+    );
+    first.finish().await;
+    next.finish().await;
+    fixture.finish().await;
+}
+
+#[tokio::test]
 async fn mentioning_model_not_found_does_not_authorize_tool_replay() {
     let rejected = Upstream::start(StatusCode::OK, true,
         "event: error\ndata: {\"error\":{\"code\":\"internal_error\",\"message\":\"backend failed during model_not_found recovery\"}}\n\n").await;

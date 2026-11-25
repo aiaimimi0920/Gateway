@@ -33,10 +33,18 @@ fn cloudflare_usage_threshold_stays_paused_until_utc_reset() {
         usage: Some(9_000.0),
     };
     let cached = paused.cached_decision(at("2026-11-24T23:59:59Z")).unwrap();
+    let error = cached.unwrap_err();
     assert_eq!(
-        cached.unwrap_err().code.as_deref(),
+        error.code.as_deref(),
         Some("cloudflare_neuron_budget_paused")
     );
+    assert!(local_denial(&error));
+    assert!(!error.retryable);
+    assert_eq!(error.upstream_retry_after_ms, Some(1_000));
+    assert!(matches!(
+        error.fallback_hint,
+        crate::error::FallbackHint::FallbackProvider { .. }
+    ));
     assert!(paused.cached_decision(at("2026-11-25T00:00:00Z")).is_none());
 
     let available = Snapshot {
@@ -79,11 +87,24 @@ async fn cloudflare_usage_account_cache_shares_threshold_across_tokens() {
         token: "synthetic".into(),
         fixture_url: Some(url),
     };
+    // A waiter owns this empty slot even before it acquires the account lock.
+    let held = Arc::new(Mutex::new(None));
+    {
+        let mut cells = check.guard.accounts.lock().await;
+        cells.insert("held".into(), held.clone());
+        for n in 1..1024 {
+            cells.insert(n.to_string(), Default::default());
+        }
+    }
     assert_eq!(
         check.admit().await.unwrap_err().code.as_deref(),
         Some("cloudflare_neuron_budget_paused")
     );
     check.token = "different".into();
+    assert!(Arc::ptr_eq(
+        &check.guard.accounts.lock().await["held"],
+        &held
+    ));
     assert_eq!(
         check.admit().await.unwrap_err().code.as_deref(),
         Some("cloudflare_neuron_budget_paused")

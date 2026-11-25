@@ -153,6 +153,7 @@ export function duplicateCredentialDialogValue(
     enabled: account.enabled,
     codexBasispointsEnabled: copiedValue?.codexBasispointsEnabled,
     commandcodeZdr: copiedValue?.commandcodeZdr,
+    vercelMonthlyCredit: copiedValue?.vercelMonthlyCredit,
     baseUrl: copiedValue?.baseUrl ?? "",
     supportedModelsText: models,
     fetchedModelsText: "",

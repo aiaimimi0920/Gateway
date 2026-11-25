@@ -9,7 +9,9 @@ mod publish_lock;
 mod snapshot;
 
 use embed_source::{snapshot_rustc_env_directive, write_embedded_ui_source};
-use manifest::{assert_ready_marker_unchanged, safe_relative_path, validate_prebuilt_web_ui_locked};
+use manifest::{
+    assert_ready_marker_unchanged, safe_relative_path, validate_prebuilt_web_ui_locked,
+};
 use publish_lock::{unix_time_nanos, with_publish_validation_lock};
 use sha2::{Digest, Sha256};
 use snapshot::publish_web_ui_snapshot;
@@ -77,7 +79,8 @@ fn wait_for_prebuilt_web_ui_snapshot(snapshot_root: &Path) -> Result<(), String>
 }
 
 fn main() {
-    let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let manifest_dir =
+        PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let repo_root = fs::canonicalize(manifest_dir.join("../..")).expect("resolve Gateway root");
     env::set_current_dir(&repo_root).expect("enter Gateway root for web UI snapshot");
 
@@ -90,7 +93,10 @@ fn main() {
     if prebuilt_enabled {
         // When prebuilt assets are supplied, depend only on the published ready marker
         // so unrelated TypeScript edits do not re-trigger snapshot copies unnecessarily.
-        println!("cargo:rerun-if-changed={}", repo_root.join(DIST_WEB_READY_PATH).display());
+        println!(
+            "cargo:rerun-if-changed={}",
+            repo_root.join(DIST_WEB_READY_PATH).display()
+        );
     } else {
         for rel in [
             "apps/desktop/package.json",
@@ -113,8 +119,13 @@ fn main() {
             .args(["run", "build:web", "--prefix", "apps/desktop"])
             .env("GATEWAY_WEB_PRUNE_LIVE", "1")
             .status()
-            .unwrap_or_else(|err| panic!("failed to launch npm for Gateway web console build: {err}"));
-        assert!(status.success(), "Gateway web console build failed with status: {status}");
+            .unwrap_or_else(|err| {
+                panic!("failed to launch npm for Gateway web console build: {err}")
+            });
+        assert!(
+            status.success(),
+            "Gateway web console build failed with status: {status}"
+        );
     }
     if let Err(error) = wait_for_prebuilt_web_ui_snapshot(&snapshot_root) {
         if prebuilt_enabled {

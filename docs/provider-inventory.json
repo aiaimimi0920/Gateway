@@ -1,8 +1,8 @@
 {
   "$schema": "provider-inventory.schema.json",
   "schemaVersion": "gateway-product-inventory/v1",
-  "generatedAt": "2026-11-24T09:57:52Z",
-  "sourceRevision": "7dbf21bb31fa7973b51dbc2f08d7d36c59dc6a32",
+  "generatedAt": "2026-11-24T17:43:45Z",
+  "sourceRevision": "a336f9681bf898b71425aaaef7c9d509ea1ad0ca",
   "sources": {
     "manifestRoot": "manifests/lines",
     "cargoManifest": "Cargo.toml",
@@ -157,8 +157,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -312,8 +312,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -461,8 +461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -609,8 +609,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -761,8 +761,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -913,8 +913,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1070,8 +1070,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1211,8 +1211,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1369,8 +1369,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1533,8 +1533,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1676,8 +1676,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1833,8 +1833,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1985,8 +1985,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2140,8 +2140,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2299,8 +2299,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2461,8 +2461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2611,8 +2611,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2752,8 +2752,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2904,8 +2904,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3053,8 +3053,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3194,8 +3194,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3334,8 +3334,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3491,8 +3491,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3639,8 +3639,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3787,8 +3787,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3913,7 +3913,7 @@
       "implementationLineMetadata": {
         "enumVariant": "KiloFree",
         "canonicalProtocolProfile": "kilo_free",
-        "featureName": null,
+        "featureName": "line-kilo-free",
         "protocolProfileMapped": true,
         "adapterMapped": false,
         "featureMapped": true,
@@ -3938,8 +3938,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4072,8 +4072,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4226,8 +4226,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4381,8 +4381,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4534,8 +4534,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4685,8 +4685,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4833,8 +4833,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4992,8 +4992,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5147,8 +5147,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5304,8 +5304,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5461,8 +5461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5618,8 +5618,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5775,8 +5775,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5923,8 +5923,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6059,8 +6059,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6214,8 +6214,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6363,8 +6363,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6513,8 +6513,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6675,8 +6675,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6815,8 +6815,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6970,8 +6970,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7123,8 +7123,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7278,8 +7278,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7431,8 +7431,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7579,8 +7579,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7736,8 +7736,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7887,8 +7887,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8035,8 +8035,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8192,8 +8192,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8332,8 +8332,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8489,8 +8489,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8637,8 +8637,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-24T09:57:52Z",
-            "observedAt": "2026-11-24T09:57:52Z",
+            "timestamp": "2026-11-24T17:43:45Z",
+            "observedAt": "2026-11-24T17:43:45Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",

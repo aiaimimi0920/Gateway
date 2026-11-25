@@ -9,8 +9,7 @@ impl ProviderAliases {
     const MAX_ID_BYTES: usize = 256;
     // Conservative queue accounting, not an allocator/RSS guarantee: string payloads
     // plus tree slots/pointers, with room for old and replacement snapshots together.
-    pub const WAIT_SNAPSHOT_BYTES: usize =
-        2 * Self::MAX_PAIRS * (2 * Self::MAX_ID_BYTES + 1024);
+    pub const WAIT_SNAPSHOT_BYTES: usize = 2 * Self::MAX_PAIRS * (2 * Self::MAX_ID_BYTES + 1024);
 
     pub fn new(pairs: Vec<(String, String)>) -> Result<Self, &'static str> {
         const INVALID: &str = "Invalid provider identity alias registry";

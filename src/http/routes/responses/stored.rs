@@ -11,6 +11,7 @@ use axum::{
 };
 
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct StoredQuery {
     stream: Option<bool>,
     starting_after: Option<i32>,

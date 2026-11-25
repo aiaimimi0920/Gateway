@@ -90,6 +90,8 @@ pub struct PipelineContext {
     pub explicit_fallback_provider_ids: Vec<String>,
     /// Replaceable local-key authority, separate from the route owner's grants.
     local_key_fallback_provider_ids: Vec<String>,
+    // A local provider quota decision is not a send, nor a grant to switch providers.
+    quota_fallback_origin: Option<String>,
     /// Validated per-request equivalence; never rewrite observed IDs in audit history.
     provider_identities: crate::provider_identity::ProviderAliases,
     /// Bearer token extracted from the HTTP Authorization header, if present.
@@ -245,6 +247,7 @@ impl PipelineContext {
             request_budget,
             explicit_fallback_provider_ids: Vec::new(),
             local_key_fallback_provider_ids: Vec::new(),
+            quota_fallback_origin: None,
             provider_identities: Default::default(),
             bearer_token,
             client_session_hints: HashMap::new(),

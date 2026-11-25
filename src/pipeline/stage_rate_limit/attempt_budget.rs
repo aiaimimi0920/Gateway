@@ -140,20 +140,39 @@ impl ProviderAttemptGate {
         .min(self.request_budget.remaining_attempts().saturating_sub(1) as usize);
         let replay_retries = policy.max_retries;
         policy.max_retries = policy.max_retries.max(connect_recovery::MAX_RETRIES);
+        use std::sync::atomic::Ordering;
+        let deferred = super::quota_send::Scope::for_gate(self);
         execute_deciding(
             || {
                 // Native dispatch futures can be large; keep retry-frame moves bounded
                 // without spawning a task or changing cancellation ownership.
                 let future = Box::pin(f());
-                async { future.await.map_err(|error| self.prepare_error(&error)) }
+                async {
+                    super::quota_send::run(deferred.as_ref(), future)
+                        .await
+                        .map_err(|error| self.prepare_error(&error))
+                }
             },
             || async {
                 connect_recovery.check()?;
                 self.admit().await?;
                 connect_recovery.check()
             },
-            || self.begin_attempt(),
+            || {
+                if let Some(scope) = &deferred {
+                    scope.started.store(false, Ordering::Relaxed);
+                    self.check_remaining()
+                } else {
+                    self.begin_attempt()
+                }
+            },
             |observation| {
+                if deferred
+                    .as_ref()
+                    .is_some_and(|scope| !scope.started.load(Ordering::Relaxed))
+                {
+                    return;
+                }
                 if let Some(error) = observation.error {
                     // Synthetic cancellation belongs to metrics, not the last real failure.
                     if error.code.as_deref() != Some("attempt_cancelled") {
@@ -163,6 +182,12 @@ impl ProviderAttemptGate {
                 observe(observation);
             },
             |error, attempt| {
+                if deferred
+                    .as_ref()
+                    .is_some_and(|scope| !scope.started.load(Ordering::Relaxed))
+                {
+                    return false;
+                }
                 if error.native_transport.is_some() {
                     return connect_recovery.remember(error)
                         && self.request_budget.allow_connect_readmission(error);
@@ -184,6 +209,8 @@ impl ProviderAttemptGate {
 fn provider_failed(error: &GatewayError) -> bool {
     error.native_transport.is_none()
         && !crate::protocol::sap_aicore::errors::neutral(error)
+        && !crate::upstream::vercel_credit_guard::local_denial(error)
+        && !crate::upstream::cloudflare_neuron_guard::local_denial(error)
         && error.request_budget_stop_reason().is_none()
         && !matches!(
             error.code.as_deref(),
@@ -229,6 +256,7 @@ pub(super) mod tests {
             requested_model: "fixture-model".into(),
             eligibility: None,
             circuit: None,
+            defer_until_quota: false,
         }
     }
 

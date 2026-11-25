@@ -30,6 +30,12 @@ async fn read_pending(
         false,
         true,
     )?;
+    if !cfg!(feature = "line-sap-aicore-chat") {
+        return Err(
+            GatewayError::conflict("SAP AI Core implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
     let rows = sap_aicore::responses_lifecycle::store::reconciliation::list(
         &state,
         cursor.after.as_deref(),

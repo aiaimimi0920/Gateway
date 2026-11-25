@@ -24,6 +24,7 @@ pub const LINE_SENSENOVA_TOKEN_PLAN_FEATURE: &str = "line-sensenova-token-plan";
 pub const LINE_COMMANDCODE_PROVIDER_API_FEATURE: &str = "line-commandcode-provider-api";
 pub const LINE_SAP_AICORE_CHAT_FEATURE: &str = "line-sap-aicore-chat";
 pub const LINE_CLOUDFLARE_WORKERS_AI_FEATURE: &str = "line-cloudflare-workers-ai";
+pub const LINE_KILO_FREE_FEATURE: &str = "line-kilo-free";
 pub const LINE_DIM_USER_OAUTH_FEATURE: &str = "line-dim-user-oauth";
 pub const LINE_NOUS_PORTAL_OAUTH_FEATURE: &str = "line-nous-portal-oauth";
 pub const LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE: &str =
@@ -234,7 +235,7 @@ impl RefactoredImplementationLine {
             Self::CommandCodeProviderApi => LINE_COMMANDCODE_PROVIDER_API_FEATURE,
             Self::SapAiCoreChat => LINE_SAP_AICORE_CHAT_FEATURE,
             Self::CloudflareWorkersAi => LINE_CLOUDFLARE_WORKERS_AI_FEATURE,
-            Self::KiloFree => "line-kilo-free",
+            Self::KiloFree => LINE_KILO_FREE_FEATURE,
             Self::DimUserOauth => LINE_DIM_USER_OAUTH_FEATURE,
             Self::NousPortalOauth => LINE_NOUS_PORTAL_OAUTH_FEATURE,
             Self::NvidiaOpenAiOfficialVendorApi => LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE,

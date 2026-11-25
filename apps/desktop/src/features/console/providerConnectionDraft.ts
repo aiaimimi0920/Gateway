@@ -7,7 +7,8 @@ export type ProviderConnectionDraft = { label: string; baseUrl: string };
 const MANAGED_TARGETS = new Set([
   "qwen-official-api", "bedrock-converse", "agnes-api", "sensenova-token-plan",
   "commandcode-api", "minimax-m-plan", "minimax-m-plan-cn", "kiro-api-key",
-  "vertex-express-api", "cloudflare-workers-ai", "sap-aicore-chat", "lumalabs-api", "lumalabs-inference-api",
+  "vertex-express-api", "cloudflare-workers-ai", "kilo-free", "vercel-ai-gateway",
+  "sap-aicore-chat", "lumalabs-api", "lumalabs-inference-api",
 ]);
 
 export function providerConnectionEditable(provider: Record<string, unknown>): boolean {
@@ -22,7 +23,7 @@ export function providerConnectionEditable(provider: Record<string, unknown>): b
 
 export function providerTargetEditable(provider: Record<string, unknown>): boolean {
   return providerConnectionEditable(provider) && !MANAGED_TARGETS.has(String(provider.preset))
-    && !["luma_agents", "vertex_express", "kiro_api_key", "sap_aicore"].includes(String(provider.auth_mode));
+    && !["luma_agents", "vertex_express", "kiro_api_key", "sap_aicore", "kilo_anonymous_free", "vercel_free_key", "vercel_monthly_credit_key"].includes(String(provider.auth_mode));
 }
 
 export function providerConnectionValue(provider: Record<string, unknown>): ProviderConnectionDraft {

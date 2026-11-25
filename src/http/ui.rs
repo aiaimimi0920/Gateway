@@ -5,8 +5,8 @@ use axum::http::{
     HeaderValue, Response, StatusCode,
 };
 use axum::response::{IntoResponse, Redirect};
-use mime_guess::from_path;
 use gateway_embedded_ui::{asset_exists, get_asset};
+use mime_guess::from_path;
 
 const INDEX_PATH: &str = "index.html";
 const HTML_CACHE_CONTROL: &str = "no-store";
@@ -98,8 +98,6 @@ fn apply_security_headers(response: &mut Response<Body>, html_shell: bool) {
         );
     }
 }
-
-
 
 fn normalize_requested_path(path: &str) -> Option<String> {
     let trimmed = path.trim_matches('/');

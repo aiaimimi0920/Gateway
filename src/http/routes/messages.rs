@@ -47,6 +47,7 @@ pub async fn handle_messages(
         state.console_auth.as_ref(),
         &["anthropic-version", "anthropic-beta"],
     )?;
+    crate::http::request_headers::capture_vibe_affinity(&mut ctx, &headers);
     for name in crate::protocol::claude_wire::HEADERS {
         if let Some(value) = headers.get(*name).and_then(|v| v.to_str().ok()) {
             if !crate::protocol::claude_wire::valid(value)

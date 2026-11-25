@@ -21,11 +21,11 @@ async fn fragmented_text_tools_usage_and_finish_wire_remain_unchanged() {
         Ok(text.slice(split..)),
         Ok(frame(
             json!({"choices": [{"delta": {"tool_calls": [{"index": 0,
-            "id": "weather-1", "function": {"name": "weather", "arguments": "{\"city\":"}}]}}]}),
+            "id": "weather-1", "function": {"name": "weather", "arguments": "{\"city\":"}}]}}], "usage": null}),
         )),
         Ok(frame(
             json!({"choices": [{"delta": {"tool_calls": [{"index": 0,
-            "function": {"arguments": "\"杭州\"}"}}]}}]}),
+            "function": {"arguments": "\"杭州\"}"}}]}}], "usage": null}),
         )),
         Ok(frame(json!({"choices": [{"finish_reason": "stop"}],
             "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}}))),
@@ -67,6 +67,67 @@ async fn fragmented_text_tools_usage_and_finish_wire_remain_unchanged() {
 struct Marker(u64);
 
 #[tokio::test]
+async fn trailing_usage_is_attached_to_one_terminal_candidate_at_done_or_eof() {
+    for done in [false, true] {
+        let mut chunks = vec![
+            Ok::<_, std::io::Error>(frame(json!({"choices":[{"finish_reason":"length"}],
+                "usage":{"prompt_tokens":7,"completion_tokens":1,"total_tokens":8}}))),
+            Ok(frame(json!({"choices":[],"usage":null}))),
+            Ok(frame(
+                json!({"choices":[],"usage":{"completion_tokens":3,"total_tokens":10}}),
+            )),
+            Ok(frame(
+                json!({"choices":[],"usage":{"prompt_tokens":"invalid"}}),
+            )),
+        ];
+        if done {
+            chunks.push(Ok(Bytes::from_static(b"data: [DONE]\n\n")));
+        }
+        // In the DONE case the connection remains open; the final frame must not wait for TCP EOF.
+        let (source, _) = probe(chunks, done);
+        let mut stream = Box::pin(translate_openai_sse_to_gemini_stream_with_error(
+            source,
+            "test".into(),
+        ));
+        let std::task::Poll::Ready(Some(Ok(bytes))) = futures::poll!(stream.next()) else {
+            panic!("expected terminal candidate");
+        };
+        let data = std::str::from_utf8(&bytes)
+            .unwrap()
+            .strip_prefix("data: ")
+            .unwrap();
+        let payload: Value = serde_json::from_str(data.trim()).unwrap();
+        assert_eq!(
+            payload,
+            json!({
+                "candidates":[{"index":0,"finishReason":"MAX_TOKENS"}],
+                "usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":3,"totalTokenCount":10}
+            })
+        );
+        if done {
+            assert!(futures::poll!(stream.next()).is_pending());
+        } else {
+            assert!(stream.next().await.is_none());
+        }
+    }
+}
+
+#[tokio::test]
+async fn accounting_without_a_finish_reason_does_not_complete_a_candidate() {
+    let usage = frame(json!({"choices":[], "usage":{"total_tokens":10}}));
+    let source = futures::stream::iter([
+        Ok::<_, std::io::Error>(usage),
+        Ok(Bytes::from_static(b"data: [DONE]\n\n")),
+    ]);
+    assert_eq!(
+        translate_openai_sse_to_gemini_stream_with_error(source, "test".into())
+            .count()
+            .await,
+        0
+    );
+}
+
+#[tokio::test]
 async fn complete_tool_is_emitted_once_at_done_or_clean_eof() {
     for done in [false, true] {
         let mut chunks = vec![Ok::<_, std::io::Error>(frame(json!({"choices":[{"delta":{
@@ -97,7 +158,7 @@ async fn nonzero_error_object_is_terminal_after_partial_output() {
     let (source, state) = probe(
         vec![
             Ok(frame(
-                json!({"choices": [{"delta": {"content": "partial"}}]}),
+                json!({"choices": [{"delta": {"content": "partial"}, "finish_reason": "stop"}]}),
             )),
             Err(error),
             Ok(frame(json!({"choices": [{"finish_reason": "stop"}]}))),

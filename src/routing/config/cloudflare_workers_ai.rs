@@ -5,7 +5,7 @@ use crate::protocol::cloudflare_workers_ai as cf;
 pub(super) fn is_template(cfg: &ProviderConfigYaml) -> bool {
     cfg.preset.as_deref() == Some(cf::PRESET)
         && cfg.base_url.is_empty()
-        && cfg.explicit_credentials_only
+        && !cfg.uses_provider_default_account()
 }
 
 pub(super) fn validate_final(

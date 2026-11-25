@@ -69,6 +69,7 @@ impl ProviderAccountPayload {
             || crate::protocol::sap_aicore::owns_payload(self)
             || crate::protocol::quick_oauth::owns_payload(self)
             || crate::protocol::agnes::owns_payload(self)
+            || crate::protocol::cloudflare_workers_ai::owns_payload(self)
         {
             return false;
         }
@@ -111,7 +112,8 @@ impl ProviderAccountPayload {
 
         matches!(endpoint_kind, EndpointKind::Responses)
             && self.responses_path.is_none()
-            && (self.chat_completions_path.is_some() || crate::preset::is_mistral_vibe_wire(self))
+            && (self.chat_completions_path.is_some()
+                || crate::preset::is_mistral_official_payload(self))
     }
 
     pub fn prefers_forced_streaming_responses(&self, endpoint_kind: EndpointKind) -> bool {

@@ -28,10 +28,15 @@ class GatewayStartupWindowContractTests(unittest.TestCase):
 
     def test_reconnect_hides_console_before_navigation_without_early_show(self):
         source = (ROOT / "src/connection/window.rs").read_text(encoding="utf-8")
-        reuse = source.split('if let Some(window) = app.get_window("gateway-console")', 1)[1].split("} else {", 1)[0]
-        self.assertLess(reuse.index("window.hide()"), reuse.index(".navigate(url)"))
-        self.assertIn('app.get_webview("gateway-console")', reuse)
-        self.assertNotIn("window.show()", reuse)
+        reuse = source.split('if let Some(window) = app.get_window("gateway-console")', 1)[1]
+        same_document, navigation = reuse.split("return Ok(());", 1)
+        self.assertIn("is_current_console", same_document)
+        self.assertNotIn("is_visible()", same_document)
+        self.assertLess(same_document.index("console_ready"), same_document.index("window.show()"))
+        self.assertNotIn("Request::Close", same_document)
+        navigation = navigation.split("} else {", 1)[0]
+        self.assertLess(navigation.index("window.hide()"), navigation.index(".navigate(url)"))
+        self.assertNotIn("window.show()", navigation)
 
     def test_settings_load_and_connection_failures_reveal_recovery_window(self):
         source = (ROOT / "src/connection.rs").read_text(encoding="utf-8")

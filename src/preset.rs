@@ -352,8 +352,13 @@ pub(crate) use openai::is_mistral_official_base;
 
 pub(crate) const MISTRAL_VIBE_USER_AGENT: &str = "mistral-client-python/Mistral-Vibe/3.1.4";
 
+pub(crate) fn is_mistral_official_payload(payload: &ProviderAccountPayload) -> bool {
+    payload.canonical_adapter() == "openai_compatible"
+        && is_mistral_official_base(&payload.base_url)
+}
+
 pub(crate) fn is_mistral_vibe_wire(payload: &ProviderAccountPayload) -> bool {
-    is_mistral_official_base(&payload.base_url)
+    is_mistral_official_payload(payload)
         && payload
             .headers
             .get("User-Agent")

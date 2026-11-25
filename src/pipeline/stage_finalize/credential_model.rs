@@ -9,6 +9,8 @@ mod failure_tests;
 fn records_failure(error: &crate::error::GatewayError) -> bool {
     error.native_transport.is_none()
         && !crate::protocol::sap_aicore::errors::neutral(error)
+        && !crate::upstream::vercel_credit_guard::local_denial(error)
+        && !crate::upstream::cloudflare_neuron_guard::local_denial(error)
         && error.request_budget_stop_reason().is_none()
         && error.kind != crate::error::ErrorKind::ModelCapacity
         && !matches!(

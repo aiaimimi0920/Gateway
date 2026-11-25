@@ -19,6 +19,7 @@ mod attempt_budget;
 #[cfg(test)]
 mod capacity_tests;
 pub(crate) mod eligibility;
+pub(crate) mod quota_send;
 
 #[derive(Clone)]
 pub struct ProviderAttemptGate {
@@ -37,6 +38,7 @@ pub struct ProviderAttemptGate {
     requested_model: String,
     eligibility: Option<eligibility::EligibilityCheck>,
     circuit: Option<Arc<crate::routing::model_circuit::CircuitAttempt>>,
+    defer_until_quota: bool,
 }
 
 impl ProviderAttemptGate {
@@ -57,6 +59,7 @@ impl ProviderAttemptGate {
         model: &str,
     ) -> Self {
         self.attempt_audit.set_candidate(candidate, model);
+        self.defer_until_quota = quota_send::guarded(&candidate.payload);
         self.provider_credential_ref = candidate
             .provider_credential_id
             .clone()
@@ -182,6 +185,7 @@ pub fn provider_attempt_gate(
             .unwrap_or_default(),
         eligibility: None,
         circuit: None,
+        defer_until_quota: false,
     })
 }
 

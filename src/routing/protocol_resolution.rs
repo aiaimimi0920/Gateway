@@ -7,6 +7,7 @@ mod surfaces;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use surfaces::payload_supported_wire_protocol_families;
 pub use surfaces::{requested_wire_protocol_family, surface_supported_wire_protocol_families};
 
 pub use model_policy::resolve_supported_wire_protocol_families_for_model;

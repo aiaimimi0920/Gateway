@@ -65,12 +65,13 @@ try {
             }
         }
         "test" {
-            $expr = if ($Rest.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($Rest[0])) { $Rest[0] } else { "" }
-            $extra = if ($Rest.Count -gt 1) { $Rest[1..($Rest.Count - 1)] } else { @() }
+            $restItems = @($Rest)
+            $expr = if ($restItems.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($restItems[0])) { $restItems[0] } else { "" }
+            $extra = @(if ($restItems.Count -gt 1) { $restItems[1..($restItems.Count - 1)] })
             $nextestArgs = @(
                 "nextest", "run", "--locked", "--offline", "--lib",
                 "--no-default-features", "--features", "runtime-defaults",
-                "--cargo-jobs", "$jobs", "--test-threads", "$jobs"
+                "--build-jobs", "$jobs", "--test-threads", "$jobs"
             )
             if (-not [string]::IsNullOrWhiteSpace($expr)) {
                 $nextestArgs += @("-E", $expr)
@@ -78,6 +79,9 @@ try {
             if ($extra.Count -gt 0) { $nextestArgs += $extra }
             Write-Host "[gateway-fast-dev] cargo $($nextestArgs -join ' ')"
             $env:CARGO_TERM_COLOR = "never"
+            if ([string]::IsNullOrWhiteSpace($env:NO_PROXY) -and [string]::IsNullOrWhiteSpace($env:no_proxy)) {
+                $env:NO_PROXY = "127.0.0.1,localhost,::1"
+            }
             & cargo @nextestArgs
             exit $LASTEXITCODE
         }
@@ -97,6 +101,9 @@ try {
                 throw "No compiled neuro_gateway-*.exe test binary found in target/debug/deps."
             }
             $binArgs = @("--color", "never") + $filterArgs
+            if ([string]::IsNullOrWhiteSpace($env:NO_PROXY) -and [string]::IsNullOrWhiteSpace($env:no_proxy)) {
+                $env:NO_PROXY = "127.0.0.1,localhost,::1"
+            }
             Write-Host "[gateway-fast-dev] retest $($binary.Name) $($binArgs -join ' ')"
             & $binary.FullName @binArgs
             exit $LASTEXITCODE

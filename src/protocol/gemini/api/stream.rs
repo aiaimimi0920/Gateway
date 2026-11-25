@@ -194,7 +194,7 @@ pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
                     // 错误是终态；交付错误前释放上游和缓冲，后续不可恢复或伪造完成。
                     Some(Err(error)) => return Some((Err(error), None)),
                     None => {
-                        state.flush_pending_tools();
+                        state.finish();
                         let output = state.outputs.pop_front()?;
                         return Some((Ok(Bytes::from(output)), Some((inner, state))));
                     }
@@ -215,12 +215,19 @@ struct PendingGeminiToolCall {
     arguments: String,
 }
 
+enum CandidateFinish {
+    Streaming,
+    AwaitingUsage(&'static str),
+    Closed,
+}
+
 struct GeminiStreamState {
     buffer: Vec<u8>,
     parser: SseParseState,
     outputs: VecDeque<Vec<u8>>,
     pending_tools: HashMap<usize, PendingGeminiToolCall>,
     latest_usage: Option<TokenUsage>,
+    finish_state: CandidateFinish,
 }
 
 impl GeminiStreamState {
@@ -232,6 +239,7 @@ impl GeminiStreamState {
             outputs: VecDeque::new(),
             pending_tools: HashMap::new(),
             latest_usage: None,
+            finish_state: CandidateFinish::Streaming,
         }
     }
 
@@ -254,35 +262,27 @@ impl GeminiStreamState {
     }
 
     fn handle_frame(&mut self, frame: SseFrame) {
+        if matches!(self.finish_state, CandidateFinish::Closed) {
+            return;
+        }
         if frame.data == "[DONE]" {
-            self.flush_pending_tools();
+            self.finish();
             return;
         }
         let Ok(raw) = serde_json::from_str::<Value>(&frame.data) else {
             return;
         };
+        if let Some(usage) = raw.get("usage") {
+            self.observe_usage(usage);
+        }
+        // A finished choice may still receive accounting, but no further candidate output.
+        if matches!(self.finish_state, CandidateFinish::AwaitingUsage(_)) {
+            return;
+        }
         let choice = raw
             .get("choices")
             .and_then(|value| value.as_array())
             .and_then(|value| value.first());
-        if let Some(usage) = raw.get("usage") {
-            self.latest_usage = Some(TokenUsage {
-                prompt_tokens: usage
-                    .get("prompt_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                completion_tokens: usage
-                    .get("completion_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                total_tokens: usage
-                    .get("total_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                cache_creation_input_tokens: None,
-                cache_read_input_tokens: None,
-            });
-        }
 
         if let Some(text) = choice
             .and_then(|value| value.get("delta"))
@@ -315,10 +315,39 @@ impl GeminiStreamState {
             .and_then(|value| value.as_str())
         {
             self.flush_pending_tools();
+            self.finish_state =
+                CandidateFinish::AwaitingUsage(map_gemini_finish_reason(Some(reason), &[]));
+        }
+    }
+
+    fn observe_usage(&mut self, usage: &Value) {
+        let count = |key: &str| usage.get(key).and_then(Value::as_u64);
+        let (prompt, completion, total) = (
+            count("prompt_tokens"),
+            count("completion_tokens"),
+            count("total_tokens"),
+        );
+        if prompt.is_some() || completion.is_some() || total.is_some() {
+            // Partial reports update only the counters actually received; null is not zero.
+            let latest = self.latest_usage.get_or_insert_with(TokenUsage::default);
+            latest.prompt_tokens = prompt.unwrap_or(latest.prompt_tokens);
+            latest.completion_tokens = completion.unwrap_or(latest.completion_tokens);
+            latest.total_tokens = total.unwrap_or(latest.total_tokens);
+        }
+    }
+
+    fn finish(&mut self) {
+        let previous = std::mem::replace(&mut self.finish_state, CandidateFinish::Closed);
+        if matches!(previous, CandidateFinish::Closed) {
+            return;
+        }
+        self.flush_pending_tools();
+        // [DONE] or clean EOF closes the accounting window. Neither invents a finish reason.
+        if let CandidateFinish::AwaitingUsage(reason) = previous {
             let mut payload = json!({
                 "candidates": [{
                     "index": 0,
-                    "finishReason": map_gemini_finish_reason(Some(reason), &[]),
+                    "finishReason": reason,
                 }]
             });
             if let Some(usage) = &self.latest_usage {

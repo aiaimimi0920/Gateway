@@ -7,7 +7,7 @@ import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { CredentialDialog } from "./CredentialDialog";
 import { PROVIDER_CATALOG_TEMPLATES } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
-import { cloudflareBase, cloudflareEndpoint } from "./cloudflareWorkersAi";
+import { cloudflareBase, cloudflareEndpoint, normalizeCloudflareCredential } from "./cloudflareWorkersAi";
 import { applyOfficialCatalog, catalogProviderKind } from "./officialModelCatalog";
 import { templateAdaptationComplete } from "./providerTemplateAdaptation";
 import { credentialDialogValueFromDocument } from "./providerCredentialDraft";
@@ -83,4 +83,14 @@ it("rejects non-account URLs and template placeholders rather than sending a tok
   for (const value of [base.replace("https:", "http:"), `${base}?x=1`, `${base}#fragment`, base.replace("api.cloudflare.com", "api.cloudflare.com.evil.invalid"), base.replace(account, `${account}/../other`)]) {
     expect(cloudflareEndpoint(value)).toBeNull();
   }
+});
+
+it("validates a replacement token with the same ASCII bounds as the sender", () => {
+  const previous = credentialDialogValueFromDocument({ providers: [provider], model_routes: [], aliases: {} }, "cf", "one")!;
+  const replace = (token: string) => normalizeCloudflareCredential({
+    ...previous, baseUrl: base, apiKeyOperation: "replace", apiKeyValue: token,
+  }, previous);
+  for (const invalid of ["", "é-token", "Bearer token", "a".repeat(16_385)]) expect(() => replace(invalid)).toThrow();
+  expect(replace(" synthetic ").apiKeyValue).toBe("synthetic");
+  expect(replace("a".repeat(16_384)).apiKeyValue).toHaveLength(16_384);
 });

@@ -87,7 +87,7 @@ pub fn parse_upstream_usage(body: &Value, _provider: &str) -> Option<TokenUsage>
         let total = usage
             .get("total_tokens")
             .and_then(|value| value.as_u64())
-            .unwrap_or(input + output);
+            .unwrap_or_else(|| input.saturating_add(output));
         return Some(TokenUsage {
             prompt_tokens: input,
             completion_tokens: output,
@@ -102,7 +102,7 @@ pub fn parse_upstream_usage(body: &Value, _provider: &str) -> Option<TokenUsage>
     let total = usage
         .get("total_tokens")
         .and_then(|v| v.as_u64())
-        .unwrap_or(prompt + completion);
+        .unwrap_or_else(|| prompt.saturating_add(completion));
 
     Some(TokenUsage {
         prompt_tokens: prompt,

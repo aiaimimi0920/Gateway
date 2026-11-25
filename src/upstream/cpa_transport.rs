@@ -2,6 +2,9 @@
 use crate::{error::GatewayError, routing::candidate::ProviderAccountPayload};
 
 pub(crate) fn rust_enabled(payload: &ProviderAccountPayload) -> Result<bool, GatewayError> {
+    if crate::preset::is_mistral_vibe_wire(payload) {
+        return Ok(false);
+    }
     select(
         payload.request_client_profile.unwrap_or_default().is_cpa(),
         std::env::var("GATEWAY_CPA_TRANSPORT").ok().as_deref(),

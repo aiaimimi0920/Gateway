@@ -42,7 +42,11 @@ impl GrantMaterial {
             .kiro_oauth
             .as_ref()
             .map(|context| context.token_endpoint())
-            .or_else(|| c.quick_oauth.as_ref().map(|context| context.token_endpoint()));
+            .or_else(|| {
+                c.quick_oauth
+                    .as_ref()
+                    .map(|context| context.token_endpoint())
+            });
         let (endpoint, client) = if let Some(context) = &c.luma_oauth {
             (
                 crate::protocol::luma_oauth::TOKEN_ENDPOINT,

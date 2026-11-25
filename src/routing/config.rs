@@ -30,7 +30,6 @@ use crate::protocol::search_api::resolve_legacy_search_route_model_alias;
 use crate::routing::candidate::{
     canonicalize_adapter_name, ProviderAccountPayload, ProviderExecutionMode, RouteCandidate,
 };
-use crate::routing::protocol_resolution::surface_supported_wire_protocol_families;
 
 // ---------------------------------------------------------------------------
 // Public types used by callers

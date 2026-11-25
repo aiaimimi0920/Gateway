@@ -39,6 +39,15 @@ pub(crate) async fn probe_console_target_with_request(
             ),
         );
     }
+    if crate::protocol::kilo_free::owns_payload(&target.payload) {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Test Kilo Free through its configured chat route; no upstream probe was sent.",
+            ),
+        );
+    }
     let strict_product = crate::protocol::commandcode::owns_payload(&target.payload)
         || crate::protocol::sensenova::owns_payload(&target.payload)
         || crate::protocol::agnes::owns_payload(&target.payload)

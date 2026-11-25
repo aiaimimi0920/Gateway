@@ -310,22 +310,24 @@ pub(super) async fn normalize(
             Ok(stream) => stream,
             Err(error) => {
                 attempt.provider_attempt_gate.observe_error(&error);
-                controller.on_failure(classify_failure_kind(&error));
-                observe_provider_failure_metric(
-                    global_gateway_metrics().as_ref(),
-                    &candidate.provider_account_id,
-                    model,
-                    stream_started_at.elapsed().as_millis() as u64,
-                    &error.message,
-                );
-                spawn_record_provider_failure(
-                    ctx.started_at,
-                    Arc::clone(state),
-                    candidate.provider_account_id.clone(),
-                    candidate.provider_credential_id.clone(),
-                    route_policy_config.clone(),
-                    error.message.clone(),
-                );
+                if should_record_provider_failure(&error) {
+                    controller.on_failure(classify_failure_kind(&error));
+                    observe_provider_failure_metric(
+                        global_gateway_metrics().as_ref(),
+                        &candidate.provider_account_id,
+                        model,
+                        stream_started_at.elapsed().as_millis() as u64,
+                        &error.message,
+                    );
+                    spawn_record_provider_failure(
+                        ctx.started_at,
+                        Arc::clone(state),
+                        candidate.provider_account_id.clone(),
+                        candidate.provider_credential_id.clone(),
+                        route_policy_config.clone(),
+                        error.message.clone(),
+                    );
+                }
                 return Err(if should_try_next_candidate(&error) {
                     AttemptError::Next(error)
                 } else {

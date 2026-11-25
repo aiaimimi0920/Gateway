@@ -58,6 +58,13 @@ pub async fn discover_account(
         if crate::protocol::sap_aicore::owns_payload(&target.payload) {
             return Err(crate::protocol::sap_aicore::invalid());
         }
+        if crate::protocol::vercel_free::owns_payload(&target.payload)
+            || crate::protocol::kilo_free::owns_payload(&target.payload)
+        {
+            return Err(GatewayError::bad_request(
+                "This provider uses a curated model catalog rather than generic account discovery.",
+            ));
+        }
         let provider = snapshot
             .document()
             .providers

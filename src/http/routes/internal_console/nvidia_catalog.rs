@@ -197,6 +197,12 @@ pub async fn read_mistral_model_catalog(
     headers: HeaderMap,
     Json(body): Json<CatalogRequest>,
 ) -> Result<Response, GatewayError> {
+    if !cfg!(feature = "line-mistral-openai-official-model-api") {
+        return Err(
+            GatewayError::conflict("Mistral implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
     read_catalog(
         CatalogProvider::Mistral { vibe: false },
         state,

@@ -64,7 +64,17 @@ pub(super) fn build_route_account_group_inventory(
                 base_url: provider_base_url.clone(),
                 mode: "provider_default".to_string(),
                 enabled: true,
-                supported_models: provider.supported_models.clone(),
+                supported_models: provider
+                    .supported_models
+                    .iter()
+                    .filter(|model| {
+                        crate::protocol::vercel_free::account_allows(
+                            &provider.payload,
+                            Some(model.as_str()),
+                        )
+                    })
+                    .cloned()
+                    .collect(),
                 group_ids: account_groups
                     .iter()
                     .map(|group| group.id.trim().to_string())
@@ -99,13 +109,22 @@ pub(super) fn build_route_account_group_inventory(
                     base_url: trim_optional_field(Some(credential.payload.base_url.as_str())),
                     mode: "credential".to_string(),
                     enabled: credential.enabled,
-                    supported_models: if credential.supported_models.is_empty()
+                    supported_models: (if credential.supported_models.is_empty()
                         && !credential.explicit_model_selection
                     {
-                        provider.supported_models.clone()
+                        &provider.supported_models
                     } else {
-                        credential.supported_models.clone()
-                    },
+                        &credential.supported_models
+                    })
+                    .iter()
+                    .filter(|model| {
+                        crate::protocol::vercel_free::account_allows(
+                            &credential.payload,
+                            Some(model.as_str()),
+                        )
+                    })
+                    .cloned()
+                    .collect(),
                     group_ids: account_groups
                         .iter()
                         .map(|group| group.id.trim().to_string())

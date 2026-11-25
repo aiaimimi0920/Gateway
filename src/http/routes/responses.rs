@@ -87,6 +87,7 @@ fn prepare_context(
         state.console_auth.as_ref(),
         &[],
     )?;
+    crate::http::request_headers::capture_vibe_affinity(&mut ctx, headers);
     ctx.query_params = query_params;
     for name in crate::protocol::codex_wire::FORWARDED_HEADERS {
         if let Some(value) = headers.get(*name).and_then(|v| v.to_str().ok()) {

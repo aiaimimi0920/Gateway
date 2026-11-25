@@ -89,7 +89,10 @@ pub(super) fn matches(raw: &str, record: &GrantRecord, target: &ProviderAccountP
         return false;
     }
     if !matches_kiro(entry.account_payload.as_ref(), material.kiro_oauth.as_ref())
-        || !matches_quick(entry.account_payload.as_ref(), material.quick_oauth.as_ref())
+        || !matches_quick(
+            entry.account_payload.as_ref(),
+            material.quick_oauth.as_ref(),
+        )
     {
         return false;
     }

@@ -509,7 +509,7 @@ mod kiro_oauth_local_tests;
 #[cfg(test)]
 #[path = "client/kiro_transport_tests.rs"]
 mod kiro_transport_tests;
-#[cfg(test)]
+#[cfg(all(test, feature = "line-mistral-openai-official-model-api"))]
 #[path = "client/mistral_contract_tests.rs"]
 mod mistral_contract_tests;
 #[cfg(test)]

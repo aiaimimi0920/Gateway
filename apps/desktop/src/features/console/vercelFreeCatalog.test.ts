@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
 import type { ConsoleRouteDocument } from "../../api/contracts";
+import { duplicateCredentialDialogValue } from "./providerCredentialDraft";
+import { providerTargetEditable } from "./providerConnectionDraft";
 import { filterVercelAccountModels, registerVercelModels, VERCEL_CREDIT_AUTH_MODE, VERCEL_FREE_TEMPLATE, vercelModels } from "./vercelFreeCatalog";
 
 it("defaults to zero-price models and adds metered routes without replacing other providers", () => {
@@ -36,4 +38,22 @@ it("filters saved models by account tier without affecting other providers", () 
   expect(filterVercelAccountModels("vercel-ai-gateway", undefined, models)).toEqual([zero]);
   expect(filterVercelAccountModels("vercel-ai-gateway", VERCEL_CREDIT_AUTH_MODE, models)).toEqual([zero, credit]);
   expect(filterVercelAccountModels("openai", undefined, models)).toEqual(models);
+});
+
+it("preserves monthly credit tier on duplicate and locks managed target URLs", () => {
+  const credit = "openai/gpt-5-mini";
+  const doc = {
+    providers: [{
+      id: "vercel", preset: "vercel-ai-gateway", base_url: "https://ai-gateway.vercel.sh/v1",
+      credentials: [{ id: "team-a", auth_mode: VERCEL_CREDIT_AUTH_MODE, supported_models: [credit] }],
+    }],
+    model_routes: [], aliases: {},
+  } as ConsoleRouteDocument;
+  const duplicated = duplicateCredentialDialogValue(doc, "vercel", {
+    accountId: "team-a", providerId: "vercel", displayName: "team-a", enabled: true,
+  } as Parameters<typeof duplicateCredentialDialogValue>[2]);
+  expect(duplicated.vercelMonthlyCredit).toBe(true);
+  expect(duplicated.supportedModelsText).toBe(credit);
+  expect(providerTargetEditable({ id: "vercel", preset: "vercel-ai-gateway" })).toBe(false);
+  expect(providerTargetEditable({ id: "kilo-free", preset: "kilo-free" })).toBe(false);
 });

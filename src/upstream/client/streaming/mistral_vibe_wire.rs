@@ -74,27 +74,21 @@ pub(super) fn envelope(builder: RequestBuilder) -> RequestBuilder {
 }
 
 pub(super) fn framing(mut headers: HeaderMap) -> HeaderMap {
-    // These belong to the Gateway ingress or to the calling Codex transport;
-    // none is part of the Mistral request or its affinity contract.
-    for name in [
-        "originator",
-        "session-id",
-        "thread-id",
-        "x-client-request-id",
-        "x-request-id",
-    ] {
-        headers.remove(name);
-    }
-    let codex_only: Vec<_> = headers
+    // Only Vibe SDK transport headers and optional session affinity may cross the wire;
+    // Gateway ingress, trace, Codex, and Anthropic headers must never leak to Mistral.
+    let disallowed: Vec<_> = headers
         .keys()
-        .filter(|name| name.as_str().starts_with("x-codex-"))
+        .filter(|name| {
+            !matches!(
+                name.as_str(),
+                "accept" | "user-agent" | "authorization" | "x-affinity"
+            )
+        })
         .cloned()
         .collect();
-    for name in codex_only {
+    for name in disallowed {
         headers.remove(name);
     }
-    headers.remove(header::CONTENT_LENGTH);
-    headers.remove(header::TRANSFER_ENCODING);
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json"),

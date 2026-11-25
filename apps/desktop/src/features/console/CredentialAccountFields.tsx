@@ -88,11 +88,12 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
       </Field>
       {qwen && <QwenCredentialEndpoint provider={qwen} value={value} onChange={setValue} disabled={locked || busy} t={t} />}
       {cloudflare && <Field label="Cloudflare Account ID">
-        <Input compact autoComplete="off" spellCheck={false} maxLength={32} value={cloudflareId}
+        <Input compact autoComplete="off" spellCheck={false} value={cloudflareId}
           onChange={(event) => {
             const cloudflareAccountId = event.currentTarget.value;
             setValue((current) => editModelSources({ ...current, cloudflareAccountId, baseUrl: "",
-              apiKeyValue: "", apiKeyOperation: "replace", modelCatalog: undefined, discovery: undefined,
+              apiKeyValue: current.apiKeyOperation === "keep" ? "" : current.apiKeyValue,
+              apiKeyOperation: "replace", modelCatalog: undefined, discovery: undefined,
             }, "", current.manualModelsText ?? ""));
           }} />
       </Field>}
@@ -119,7 +120,7 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
         disabled={locked || busy} hasSecretAccess={hasSecretAccess} onRequestSecretAccess={onRequestSecretAccess} onReveal={onRevealKey}
         onLoaded={(apiKeyValue) => setValue((current) => ({ ...current, apiKeyValue }))}
         onChange={(apiKeyValue) => setValue((current) => {
-          const next = { ...current, apiKeyValue, apiKeyOperation: apiKeyValue ? "replace" as const : mode === "edit" ? "clear" as const : "keep" as const, discovery: undefined, modelCatalog: undefined, vercelMonthlyCredit: undefined };
+          const next = { ...current, apiKeyValue, apiKeyOperation: apiKeyValue ? "replace" as const : mode === "edit" ? "clear" as const : "keep" as const, discovery: undefined, modelCatalog: undefined };
           return qwen ? clearQwenEvidence(next) : next;
         })} />}
     </>}

@@ -147,6 +147,7 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     }
     #[cfg(feature = "line-kilo-free")]
     presets.push(super::openai::kilo_free_preset());
+    #[cfg(feature = "family-openai-compatible-official-api")]
     presets.push(super::openai::vercel_free_preset());
     #[cfg(feature = "line-poe-openai-aggregator-api")]
     {

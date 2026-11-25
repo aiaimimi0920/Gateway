@@ -91,6 +91,19 @@ pub(crate) fn validate(
     Ok(())
 }
 
+pub(crate) fn validate_payload(
+    payload: &ProviderAccountPayload,
+    adapter: &str,
+) -> Result<(), GatewayError> {
+    if !owns_payload(payload) {
+        return Ok(());
+    }
+    if adapter != "openai_compatible" || !valid_payload(payload) {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
 fn valid_payload(payload: &ProviderAccountPayload) -> bool {
     payload.base_url == BASE
         && payload.canonical_adapter() == "openai_compatible"
@@ -130,6 +143,7 @@ fn valid_body(body: &serde_json::Map<String, serde_json::Value>) -> bool {
                     | "tool_choice"
                     | "parallel_tool_calls"
                     | "response_format"
+                    | "reasoning_effort"
                     | "n"
                     | "logprobs"
                     | "top_logprobs"

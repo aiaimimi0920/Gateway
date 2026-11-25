@@ -59,7 +59,6 @@ fn mistral_contract_registry_and_official_url() {
                         .then_some("mistral-client-python/Mistral-Vibe/3.1.4")
                 );
                 if preset == "mistral-vibe-api" {
-                    assert!(body.get("stream_options").is_none());
                     assert_eq!(
                         headers["accept"],
                         if streaming {
@@ -69,6 +68,7 @@ fn mistral_contract_registry_and_official_url() {
                         }
                     );
                 }
+                assert!(body.get("stream_options").is_none());
             }
         }
     }
@@ -88,20 +88,25 @@ fn mistral_contract_vibe_preserves_explicit_stream_options() {
 
 #[test]
 fn mistral_contract_vibe_responses_uses_official_chat_bridge() {
-    let vibe = payload("mistral-vibe-api", "https://api.mistral.ai/v1");
-    let req = crate::protocol::responses::normalize_responses(json!({
-        "model":"mistral-large-latest", "stream":true, "store":false,
-        "instructions":"fixture instructions", "input":"Reply OK"
-    }))
-    .unwrap();
-    let plan =
-        UpstreamClient::build_request_plan(&vibe, &req, "mistral-large-latest", true).unwrap();
-    assert_eq!(plan.url, "https://api.mistral.ai/v1/chat/completions");
-    let body = plan.body.unwrap();
-    assert!(body["messages"].is_array());
-    assert!(body.get("store").is_none());
-    assert!(body.get("stream_options").is_none());
-    assert!(!body.to_string().contains("session_id"));
+    for preset in ["mistral-studio-api", "mistral-vibe-api"] {
+        let selected = payload(preset, "https://api.mistral.ai/v1");
+        let req = crate::protocol::responses::normalize_responses(json!({
+            "model":"mistral-large-latest", "stream":true, "store":false,
+            "text":{"verbosity":"low"},
+            "instructions":"fixture instructions", "input":"Reply OK"
+        }))
+        .unwrap();
+        let plan =
+            UpstreamClient::build_request_plan(&selected, &req, "mistral-large-latest", true)
+                .unwrap();
+        assert_eq!(plan.url, "https://api.mistral.ai/v1/chat/completions");
+        let body = plan.body.unwrap();
+        assert!(body["messages"].is_array());
+        assert!(body.get("store").is_none());
+        assert!(body.get("verbosity").is_none());
+        assert!(body.get("stream_options").is_none());
+        assert!(!body.to_string().contains("session_id"));
+    }
 }
 
 #[test]
@@ -111,6 +116,23 @@ fn mistral_contract_vibe_affinity_uses_session_and_stays_on_official_chat() {
     let studio = payload("mistral-studio-api", "https://api.mistral.ai/v1");
     let root = "e48c3aac-c015-fac8-fe09-391e084e9c63";
     let child = "c5ca2b60-93e9-4258-4914-d676002aeef2";
+    for (root_value, expected) in [("invalid", child), (root, root)] {
+        let req = crate::protocol::responses::normalize_responses(json!({
+            "model":"mistral-large-latest", "input":"Reply OK",
+            "metadata": {"root_session_id":root_value, "session_id":child}
+        }))
+        .unwrap();
+        let plan =
+            UpstreamClient::build_request_plan(&vibe, &req, "mistral-large-latest", false).unwrap();
+        let mut headers = crate::upstream::headers::build_inference_headers(
+            &vibe,
+            &req,
+            "mistral-large-latest",
+            None,
+        );
+        finalize_vibe_affinity(&vibe, &plan, &mut headers);
+        assert_eq!(headers["x-affinity"], expected);
+    }
     let mut plan =
         UpstreamClient::build_request_plan(&vibe, &request(true), "mistral-large-latest", true)
             .unwrap();
@@ -295,7 +317,12 @@ async fn receiver(
 async fn mistral_contract_wire_json_sse_and_auth_errors() {
     for (streaming, unauthorized) in [(false, false), (true, false), (false, true), (true, true)] {
         let (base, server) = receiver(streaming, unauthorized).await;
-        let client = UpstreamClient::new(5);
+        let mut client = UpstreamClient::new(5);
+        client.http = rquest::Client::builder()
+            .no_proxy()
+            .redirect(rquest::redirect::Policy::none())
+            .build()
+            .unwrap();
         let payload = payload("mistral-studio-api", &base);
         let req = request(streaming);
         tokio::time::timeout(Duration::from_secs(7), async {

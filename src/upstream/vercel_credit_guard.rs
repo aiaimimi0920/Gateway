@@ -10,8 +10,7 @@ use rquest::{header::HeaderValue, Client, Response};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{HashMap, HashSet},
-    future::Future,
+    collections::HashSet,
     sync::OnceLock,
     time::{Duration, Instant, SystemTime},
 };
@@ -21,22 +20,19 @@ const MODELS: &str = "https://ai-gateway.vercel.sh/v1/models";
 const CREDITS: &str = "https://ai-gateway.vercel.sh/v1/credits";
 const MAX_CREDIT: f64 = 5.0;
 const TTL: Duration = Duration::from_secs(30);
+const NEGATIVE_TTL: Duration = Duration::from_secs(5);
 const RECHECK: Duration = Duration::from_secs(3600);
-const MAX_PAUSED_KEYS: usize = 4096;
+#[path = "vercel_credit_ledger.rs"]
+mod ledger;
+use ledger::{Ledger, Permit};
 
 #[derive(Default)]
 struct Guard {
-    catalog: Mutex<Option<(Instant, HashSet<String>)>>,
-    paused: Mutex<HashMap<Key, Pause>>,
+    catalog: Mutex<Option<(Instant, Option<HashSet<String>>)>>,
+    ledger: Ledger,
 }
 
 type Key = [u8; 32];
-
-#[derive(Clone, Copy)]
-struct Pause {
-    since: Instant,
-    next_check: Instant,
-}
 
 fn guard() -> &'static Guard {
     static GUARD: OnceLock<Guard> = OnceLock::new();
@@ -89,134 +85,89 @@ impl Check {
         }))
     }
 
-    pub(crate) async fn admit(&self) -> Result<(), GatewayError> {
+    pub(crate) async fn admit(&self) -> Result<Option<Permit<'static>>, GatewayError> {
         let Some((key, bearer)) = &self.metered else {
-            return guard().check_zero(&self.http, &self.model).await;
+            return guard()
+                .check_zero(&self.http, &self.model)
+                .await
+                .map(|_| None);
         };
         guard()
-            .admit_metered(key, Instant::now(), || {
+            .ledger
+            .admit(*key, Instant::now(), || {
                 read_balance(&self.http, bearer.clone())
             })
             .await
+            .map(Some)
     }
+}
 
-    pub(crate) fn is_metered(&self) -> bool {
-        self.metered.is_some()
-    }
-
-    pub(crate) async fn payment_error(&self, response: Response, provider: &str) -> GatewayError {
-        let delay = retry_after_from_headers(response.headers(), SystemTime::now());
-        let body = match collect_bounded_upstream_charset_text_with_provider(
-            response,
-            "Vercel credit rejection",
-            provider,
-        )
-        .await
+pub(crate) async fn payment_error(
+    response: Response,
+    provider: &str,
+    permit: Permit<'_>,
+) -> GatewayError {
+    let delay = retry_after_from_headers(response.headers(), SystemTime::now());
+    let body = match collect_bounded_upstream_charset_text_with_provider(
+        response,
+        "Vercel credit rejection",
+        provider,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(error)
+            if matches!(
+                error.code.as_deref(),
+                Some("upstream_body_too_large" | "upstream_body_buffer_allocation_failed")
+            ) =>
         {
-            Ok(body) => body,
-            Err(error)
-                if matches!(
-                    error.code.as_deref(),
-                    Some("upstream_body_too_large" | "upstream_body_buffer_allocation_failed")
-                ) =>
-            {
-                return error
-            }
-            Err(_) => String::from("<unreadable body>"),
-        };
-        let upstream =
-            || classify_upstream_error(402, &body, Some(provider)).with_retry_after_ms(delay);
-        let Some((key, _)) = &self.metered else {
-            return upstream();
-        };
-        if !is_depletion(&body) {
-            return upstream();
+            return error
         }
-        guard().pause(*key, Instant::now()).await;
-        // Unlike a local rejection, this response must be attributed to the account that sent it.
-        paused()
-            .with_code("vercel_monthly_credit_exhausted")
-            .with_provider(provider)
-            .with_retry_after_ms(delay)
+        Err(_) => String::from("<unreadable body>"),
+    };
+    let upstream =
+        || classify_upstream_error(402, &body, Some(provider)).with_retry_after_ms(delay);
+    if !is_depletion(&body) {
+        return upstream();
     }
+    permit.pause(Instant::now());
+    // Unlike a local rejection, this response must be attributed to the account that sent it.
+    let mut error = paused()
+        .with_code("vercel_monthly_credit_exhausted")
+        .with_provider(provider);
+    error.upstream_retry_after_ms = delay;
+    error
 }
 
 impl Guard {
-    async fn pause(&self, key: Key, since: Instant) {
-        let mut pauses = self.paused.lock().await;
-        if pauses.len() < MAX_PAUSED_KEYS {
-            pauses.entry(key).or_insert(Pause {
-                since,
-                next_check: since + RECHECK,
-            });
-        }
-    }
-
-    async fn admit_metered<F: Future<Output = Option<f64>>>(
-        &self,
-        key: &Key,
-        now: Instant,
-        read: impl FnOnce() -> F,
-    ) -> Result<(), GatewayError> {
-        let snapshot = {
-            let mut pauses = self.paused.lock().await;
-            let Some(pause) = pauses.get_mut(key) else {
-                return if pauses.len() >= MAX_PAUSED_KEYS {
-                    Err(unavailable())
-                } else {
-                    Ok(())
-                };
-            };
-            pause.claim(now).ok_or_else(paused)?
-        };
-        // No lock across network IO; one in-flight probe per key within the interval.
-        let current = read().await;
-        let mut pauses = self.paused.lock().await;
-        if current.is_some_and(|balance| balance > 0.0)
-            && pauses
-                .get(key)
-                .is_some_and(|pause| pause.since == snapshot.since)
-        {
-            pauses.remove(key);
-            Ok(())
-        } else {
-            Err(paused())
-        }
-    }
-
     async fn check_zero(&self, http: &Client, id: &str) -> Result<(), GatewayError> {
         let mut slot = self.catalog.lock().await;
-        if slot.as_ref().is_none_or(|(when, _)| when.elapsed() >= TTL) {
-            let json = get(http, MODELS, None, 4 * 1024 * 1024)
+        let refresh = slot.as_ref().is_none_or(|(when, cached)| {
+            when.elapsed() >= if cached.is_some() { TTL } else { NEGATIVE_TTL }
+        });
+        if refresh {
+            let fetched = get(http, MODELS, None, 4 * 1024 * 1024)
                 .await
-                .ok_or_else(unavailable)?;
-            let rows = json
-                .get("data")
-                .and_then(Value::as_array)
-                .ok_or_else(unavailable)?;
-            let catalog = rows
-                .iter()
-                .filter_map(|row| {
-                    let id = row.get("id")?.as_str()?;
-                    (vercel_free::zero_model(id) && zero_price(row)).then(|| id.to_owned())
-                })
-                .collect();
-            *slot = Some((Instant::now(), catalog));
+                .and_then(|json| {
+                    let rows = json.get("data")?.as_array()?;
+                    Some(
+                        rows.iter()
+                            .filter_map(|row| {
+                                let id = row.get("id")?.as_str()?;
+                                (vercel_free::zero_model(id) && zero_price(row))
+                                    .then(|| id.to_owned())
+                            })
+                            .collect::<HashSet<String>>(),
+                    )
+                });
+            *slot = Some((Instant::now(), fetched));
         }
         slot.as_ref()
-            .filter(|(_, prices)| prices.contains(id))
+            .and_then(|(_, prices)| prices.as_ref())
+            .filter(|prices| prices.contains(id))
             .map(|_| ())
             .ok_or_else(unavailable)
-    }
-}
-
-impl Pause {
-    fn claim(&mut self, now: Instant) -> Option<Self> {
-        if now < self.next_check {
-            return None;
-        }
-        self.next_check = now + RECHECK;
-        Some(*self)
     }
 }
 
@@ -326,14 +277,22 @@ fn paused() -> GatewayError {
         "Vercel metered models are paused for this key after a credit rejection; zero-price models remain eligible.",
     ).with_code("vercel_monthly_credit_paused");
     error.http_status = Some(402);
+    error.fallback_hint = crate::error::FallbackHint::FallbackProvider {
+        reason: "Vercel monthly credit is paused for this key".into(),
+    };
     error
 }
 
 fn unavailable() -> GatewayError {
-    GatewayError::service_unavailable(
+    let mut error = GatewayError::service_unavailable(
         "Vercel zero pricing or metered admission could not be verified; inference was not sent.",
     )
-    .with_code("vercel_credit_unverified")
+    .with_code("vercel_credit_unverified");
+    error.retryable = false;
+    error.fallback_hint = crate::error::FallbackHint::FallbackProvider {
+        reason: "Vercel credit admission could not be verified".into(),
+    };
+    error
 }
 
 pub(crate) fn local_denial(error: &GatewayError) -> bool {

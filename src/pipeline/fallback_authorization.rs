@@ -2,6 +2,14 @@
 use super::PipelineContext;
 
 impl PipelineContext {
+    pub(super) fn crosses_fallback_boundary(&self, provider: &str) -> bool {
+        self.has_other_provider_attempt(provider)
+            || self
+                .quota_fallback_origin
+                .as_ref()
+                .is_some_and(|origin| !self.provider_identities.same(origin, provider))
+    }
+
     pub(super) fn fallback_provider_authorized(&self, provider: &str) -> bool {
         self.explicit_fallback_provider_ids
             .iter()

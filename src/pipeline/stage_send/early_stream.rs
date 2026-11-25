@@ -20,7 +20,11 @@ pub(super) async fn check(mut stream: ByteStream) -> Result<ByteStream, GatewayE
             }
             StreamError::Transport(error) => crate::error::classify_network_error(&error, None),
         })?;
-        size += bytes.len();
+        // Empty chunks carry no SSE bytes; do not retain an unbounded vector of them.
+        if bytes.is_empty() {
+            continue;
+        }
+        size = usize::saturating_add(size, bytes.len());
         // Never accumulate an unbounded preamble; hand off without claiming success.
         if size > PREFIX_LIMIT {
             prefix.push(bytes);
@@ -34,62 +38,101 @@ pub(super) async fn check(mut stream: ByteStream) -> Result<ByteStream, GatewayE
                 DecodeStep::Error(error) => {
                     return Err(GatewayError::server_error(error.to_string()))
                 }
-                DecodeStep::Frame(frame) => {
-                    if frame.data.is_empty() {
-                        continue;
-                    }
-                    let Ok(value) = serde_json::from_str::<serde_json::Value>(&frame.data) else {
-                        return Ok(replay(prefix, stream));
-                    };
-                    let kind = value
-                        .get("type")
-                        .and_then(|v| v.as_str())
-                        .or(frame.event_name.as_deref())
-                        .unwrap_or("");
-                    let error = value
-                        .get("error")
-                        .filter(|v| !v.is_null())
-                        .or_else(|| value.pointer("/response/error").filter(|v| !v.is_null()));
-                    if let Some(error) = error {
-                        let message = error
-                            .get("message")
-                            .and_then(|v| v.as_str())
-                            .or_else(|| error.as_str())
-                            .unwrap_or("Upstream stream error");
-                        let code = error
-                            .get("code")
-                            .or_else(|| error.get("type"))
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
-                        // Keep known admission messages intact for their narrow classifiers.
-                        if matches!(code, "" | "channel_not_found" | "model_not_available")
-                            || crate::error::is_account_balance_rejection(403, message)
-                            || crate::error::is_model_pricing_failure(
-                                502,
-                                Some(code),
-                                Some(message),
-                            )
-                        {
-                            return Err(classify(message, code));
-                        }
-                        return Err(classify(&format!("{code}: {message}"), code));
-                    }
-                    if matches!(kind, "error" | "response.failed" | "response.cancelled") {
-                        return Err(GatewayError::server_error(
-                            "Upstream stream failed before output",
-                        ));
-                    }
-                    // Only known non-output lifecycle events may be consumed speculatively.
-                    if !is_empty_preamble(kind, &value) {
-                        return Ok(replay(prefix, stream));
-                    }
-                }
+                DecodeStep::Frame(frame) => match inspect_frame(frame) {
+                    FrameDecision::Continue => continue,
+                    FrameDecision::Replay => return Ok(replay(prefix, stream)),
+                    FrameDecision::Reject(error) => return Err(error),
+                },
             }
+        }
+    }
+    if let Some(frame) = decoder.flush_pending_frame() {
+        match inspect_frame(frame) {
+            FrameDecision::Continue => {}
+            FrameDecision::Replay => return Ok(replay(prefix, stream)),
+            FrameDecision::Reject(error) => return Err(error),
         }
     }
     Err(GatewayError::server_error(
         "Upstream stream ended before output",
     ))
+}
+
+enum FrameDecision {
+    Continue,
+    Replay,
+    Reject(GatewayError),
+}
+
+fn inspect_frame(frame: crate::protocol::sse_parse::SseFrame) -> FrameDecision {
+    if frame.data.is_empty() {
+        return FrameDecision::Continue;
+    }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&frame.data) else {
+        return FrameDecision::Replay;
+    };
+    let kind = value
+        .get("type")
+        .and_then(|v| v.as_str())
+        .or(frame.event_name.as_deref())
+        .unwrap_or("");
+    // A response handle is observable work even before text. A later failure
+    // must not convert that creation into permission for a fresh generation.
+    if value
+        .pointer("/response/id")
+        .and_then(|id| id.as_str())
+        .is_some_and(|id| !id.trim().is_empty())
+    {
+        return FrameDecision::Replay;
+    }
+    let error = value
+        .get("error")
+        .filter(|v| !v.is_null())
+        .or_else(|| value.pointer("/response/error").filter(|v| !v.is_null()));
+    if let Some(error) = error {
+        let message = error
+            .get("message")
+            .and_then(|v| v.as_str())
+            .or_else(|| error.as_str())
+            .unwrap_or("Upstream stream error");
+        let code = error
+            .get("code")
+            .and_then(|v| v.as_str())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                error.get("type").and_then(|v| v.as_str()).filter(|v| {
+                    !v.is_empty()
+                        && !matches!(
+                            *v,
+                            "new_api_error"
+                                | "one_api_error"
+                                | "openai_error"
+                                | "rix_api_error"
+                                | "shell_api_error"
+                        )
+                })
+            })
+            .unwrap_or("");
+        // Keep known admission messages intact for their narrow classifiers.
+        if matches!(code, "" | "channel_not_found" | "model_not_available")
+            || crate::error::is_account_balance_rejection(403, message)
+            || crate::error::is_model_pricing_failure(502, Some(code), Some(message))
+        {
+            return FrameDecision::Reject(classify(message, code));
+        }
+        return FrameDecision::Reject(classify(&format!("{code}: {message}"), code));
+    }
+    if matches!(kind, "error" | "response.failed" | "response.cancelled") {
+        return FrameDecision::Reject(GatewayError::server_error(
+            "Upstream stream failed before output",
+        ));
+    }
+    // Only known non-output lifecycle events may be consumed speculatively.
+    if is_empty_preamble(kind, &value) {
+        FrameDecision::Continue
+    } else {
+        FrameDecision::Replay
+    }
 }
 
 fn replay(prefix: Vec<Bytes>, stream: ByteStream) -> ByteStream {

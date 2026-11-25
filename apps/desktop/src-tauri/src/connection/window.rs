@@ -1,5 +1,6 @@
 use super::ConnectionState;
 use std::io::Read;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tauri::menu::{Menu, MenuItem};
 use tauri::{
@@ -60,15 +61,20 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
         .origin
         .lock()
         .map_err(|_| "Connection lock poisoned")? = Some(url.origin().ascii_serialization());
-    super::panel::enqueue(app, super::panel::Request::Close);
     if let Some(window) = app.get_window("gateway-console") {
         let webview = app
             .get_webview("gateway-console")
             .ok_or("Console webview unavailable")?;
-        // Reopening the connected console must not unload its route draft.
-        if webview
-            .url()
-            .is_ok_and(|current| is_current_console(&current, &url))
+        // Reopening the connected console must not unload its route draft or embedded settings panel.
+        // Visibility also changes when minimizing to tray. A ready hidden
+        // document is reusable; an unfinished or failed load must be retried.
+        if app
+            .state::<ConnectionState>()
+            .console_ready
+            .load(Ordering::Acquire)
+            && webview
+                .url()
+                .is_ok_and(|current| is_current_console(&current, &url))
         {
             window.show().map_err(|error| error.to_string())?;
             window.unminimize().map_err(|error| error.to_string())?;
@@ -78,6 +84,7 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             }
             return Ok(());
         }
+        super::panel::enqueue(app, super::panel::Request::Close);
         window
             .set_decorations(true)
             .map_err(|error| error.to_string())?;
@@ -85,8 +92,12 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .set_menu(native_menu(app)?)
             .map_err(|error| error.to_string())?;
         window.hide().map_err(|error| error.to_string())?;
+        app.state::<ConnectionState>()
+            .console_ready
+            .store(false, Ordering::Release);
         webview.navigate(url).map_err(|error| error.to_string())?;
     } else {
+        super::panel::enqueue(app, super::panel::Request::Close);
         let menu = native_menu(app)?;
         let navigation_app = app.clone();
         let browser_app = app.clone();
@@ -104,6 +115,11 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .on_page_load(|window, payload| {
                 // Do not expose WebView2's empty document or the intermediate connection form.
                 if !matches!(payload.event(), PageLoadEvent::Finished) {
+                    window
+                        .app_handle()
+                        .state::<ConnectionState>()
+                        .console_ready
+                        .store(false, Ordering::Release);
                     return;
                 }
                 let app = window.app_handle();
@@ -119,6 +135,9 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
                     show_settings(app);
                     return;
                 }
+                app.state::<ConnectionState>()
+                    .console_ready
+                    .store(true, Ordering::Release);
                 if !window.is_visible().unwrap_or(false) {
                     if window.show().is_ok() {
                         let _ = window.set_focus();

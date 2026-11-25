@@ -549,15 +549,12 @@ fn provider_to_candidate(
                 .iter()
                 .map(|c| c.protocol.family().to_owned())
                 .collect()
-        } else if let Some(families) = crate::protocol::commandcode::catalog::families(
-            &selected_payload,
-            upstream_model.as_deref(),
-        ) {
-            families
-        } else if crate::protocol::sensenova::owns_payload(&selected_payload) {
-            crate::protocol::sensenova::families(upstream_model.as_deref())
         } else {
-            surface_supported_wire_protocol_families(&selected_payload.adapter, family)
+            super::super::protocol_resolution::payload_supported_wire_protocol_families(
+                &selected_payload,
+                family,
+                upstream_model.as_deref(),
+            )
         },
         payload: selected_payload,
         model_alias: alias.map(|s| s.to_string()),

@@ -19,6 +19,7 @@ use tauri::{AppHandle, Manager, Webview};
 pub struct ConnectionState {
     busy: Mutex<()>,
     origin: Mutex<Option<String>>,
+    console_ready: std::sync::atomic::AtomicBool,
 }
 
 fn require_settings_window(window: &Webview) -> Result<(), String> {

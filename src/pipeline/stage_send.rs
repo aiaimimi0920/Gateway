@@ -180,7 +180,7 @@ async fn run_candidates(
             rejected_by_policy = true;
             continue;
         }
-        if ctx.has_other_provider_attempt(&candidate.provider_account_id)
+        if ctx.crosses_fallback_boundary(&candidate.provider_account_id)
             && !ctx.provider_explicitly_allowed_for_send(&candidate.provider_account_id)
             && !ctx.fallback_provider_authorized(&candidate.provider_account_id)
         {
@@ -520,7 +520,9 @@ async fn run_candidates(
                 return Ok(output);
             }
             Err(AttemptError::Next(error)) => {
-                ctx.request_budget.allow_rejected_candidate_fallback(&error);
+                if ctx.route_attempt_count() > before.0 {
+                    ctx.request_budget.allow_rejected_candidate_fallback(&error);
+                }
                 last_error = Some(error);
                 continue;
             }

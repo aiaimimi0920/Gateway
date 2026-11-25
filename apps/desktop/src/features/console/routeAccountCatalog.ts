@@ -229,7 +229,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           providerId,
           providerLabel,
           providerPreset,
-          authMode: optionalString(provider, "auth_mode"),
+          authMode: optionalString(credential, "auth_mode") ?? optionalString(provider, "auth_mode"),
           baseUrl,
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",

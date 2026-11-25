@@ -91,6 +91,7 @@ pub fn classify_provider_failure(
     if upstream_status.is_some_and(|status| {
         crate::error::is_model_capacity(status, error_code, error_message)
             || crate::error::is_model_pricing_failure(status, error_code, error_message)
+            || crate::error::is_transient_distributor_unavailable(status, error_code, error_message)
     }) {
         return ProviderFailureClassification {
             class: ProviderFailureClass::ProviderTransient,
@@ -346,5 +347,29 @@ mod tests {
             Some("LobsterAI returned a failed or invalid Chat response"),
         );
         assert!(!classification.permanent);
+    }
+
+    #[test]
+    fn transient_distributor_channel_unavailable_with_model_not_found_is_not_permanent() {
+        for (status, code, message) in [
+            (
+                503,
+                "model_not_found",
+                "No available channel for model deepseek-v4.1-flash under group auto (distributor)",
+            ),
+            (
+                502,
+                "upstream_stream_model_not_found",
+                "model_not_found: 分组 default 下模型 deepseek-v4.1-flash 无可用渠道（distributor）",
+            ),
+        ] {
+            let classification = classify_provider_failure(Some(status), Some(code), Some(message));
+            assert_eq!(
+                classification.class,
+                ProviderFailureClass::ProviderTransient
+            );
+            assert_eq!(classification.scope, ProviderFailureScope::CredentialModel);
+            assert!(!classification.permanent);
+        }
     }
 }

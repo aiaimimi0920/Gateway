@@ -159,9 +159,16 @@ pub(super) async fn consume(
         Evidence::Neutral(status)
     };
     (hooks.observe)(evidence);
+    let terminal_failure = || {
+        if circuit.is_some() {
+            DispatchError::Recorded(receipt.id.clone())
+        } else {
+            DispatchError::DeliveryUnknown
+        }
+    };
     let latest = write_terminal(store, &receipt, &id, state)
         .await
-        .map_err(|_| DispatchError::Recorded(receipt.id.clone()))?;
+        .map_err(|_| terminal_failure())?;
     let latest = store
         .settle_balance(&latest)
         .await
@@ -173,7 +180,7 @@ pub(super) async fn consume(
     };
     let public = observation
         .public_json(pin)
-        .map_err(|_| DispatchError::Recorded(receipt.id.clone()))?;
+        .map_err(|_| terminal_failure())?;
     publish(snapshot(name, sequence, public), true);
     Ok(observation)
 }
@@ -222,10 +229,13 @@ fn report(
     if let Some(circuit) = circuit {
         evidence.finish(circuit);
         (hooks.observe)(evidence);
-    } else if let Some(status) = evidence.status() {
-        (hooks.observe)(Evidence::Neutral(status));
+        DispatchError::Recorded(receipt.id.clone())
+    } else {
+        if let Some(status) = evidence.status() {
+            (hooks.observe)(Evidence::Neutral(status));
+        }
+        DispatchError::DeliveryUnknown
     }
-    DispatchError::Recorded(receipt.id.clone())
 }
 
 async fn before<T>(deadline: Option<Instant>, future: impl Future<Output = T>) -> Option<T> {

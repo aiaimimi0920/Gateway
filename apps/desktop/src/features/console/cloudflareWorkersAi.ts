@@ -28,10 +28,14 @@ export function requireCloudflareBase(base: string): string {
 }
 
 export function normalizeCloudflareCredential(value: CredentialDialogValue, previous?: CredentialDialogValue | null): CredentialDialogValue {
-  const baseUrl = requireCloudflareBase(value.cloudflareAccountId === undefined ? value.baseUrl : cloudflareBase(value.cloudflareAccountId.trim()) ?? "");
+  const baseUrl = requireCloudflareBase(value.cloudflareAccountId === undefined ? value.baseUrl : cloudflareBase(value.cloudflareAccountId.trim().toLowerCase()) ?? "");
   const previousBase = cloudflareEndpoint(previous?.baseUrl ?? "")?.baseUrl;
-  if ((!previous || previousBase !== baseUrl) && (value.apiKeyOperation !== "replace" || !value.apiKeyValue.trim())) {
+  const token = value.apiKeyValue.trim();
+  if ((!previous || previousBase !== baseUrl) && (value.apiKeyOperation !== "replace" || !token)) {
     throw new Error("新增或更换 Cloudflare Account ID 时，必须为该账号填写 API Token。");
   }
-  return { ...value, baseUrl };
+  if (value.apiKeyOperation === "replace" && !/^[\x21-\x7e]{1,16384}$/.test(token)) {
+    throw new Error("Cloudflare API Token 格式无效，请填写纯 Token（不含 Bearer 前缀或空白字符）。");
+  }
+  return { ...value, baseUrl, apiKeyValue: value.apiKeyOperation === "replace" ? token : value.apiKeyValue };
 }

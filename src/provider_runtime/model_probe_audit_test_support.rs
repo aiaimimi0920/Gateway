@@ -51,7 +51,10 @@ pub(super) fn capture() -> Hooks {
     HOOKS.try_with(Clone::clone).unwrap_or_default()
 }
 impl Hooks {
-    #[cfg(any(feature = "line-commandcode-provider-api", feature = "line-sensenova-token-plan"))]
+    #[cfg(any(
+        feature = "line-commandcode-provider-api",
+        feature = "line-sensenova-token-plan"
+    ))]
     pub(crate) fn pause_at_finish(pause: Arc<Pause>) -> Self {
         Self {
             finish: Some(pause),

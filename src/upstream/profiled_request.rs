@@ -61,14 +61,19 @@ impl Pending {
 
     pub(crate) async fn send(self) -> Result<Response, GatewayError> {
         if let Some(check) = self.cloudflare {
-            check.admit().await?;
-        }
-        if let Some(check) = &self.vercel {
             check
                 .admit()
                 .await
                 .map_err(|error| error.with_provider(&self.provider))?;
         }
+        let metered = match &self.vercel {
+            Some(check) => check
+                .admit()
+                .await
+                .map_err(|error| error.with_provider(&self.provider))?,
+            None => None,
+        };
+        crate::pipeline::stage_rate_limit::quota_send::after_quota().await?;
         #[cfg(feature = "cpa-rust-transport")]
         if self.rust {
             return send_rust(self.builder, &self.provider, self.timeout).await;
@@ -80,11 +85,13 @@ impl Pending {
             .send()
             .await
             .map_err(|e| classify_network_error(&e, Some(&self.provider)))?;
-        if let Some(check) = self
-            .vercel
-            .filter(|check| check.is_metered() && response.status().as_u16() == 402)
-        {
-            return Err(check.payment_error(response, &self.provider).await);
+        if let Some(permit) = metered.filter(|_| response.status().as_u16() == 402) {
+            return Err(super::vercel_credit_guard::payment_error(
+                response,
+                &self.provider,
+                permit,
+            )
+            .await);
         }
         if self.kilo_free && response.status().as_u16() == 429 {
             return Err(crate::protocol::kilo_free::rate_limit(response.headers())

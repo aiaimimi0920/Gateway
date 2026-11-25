@@ -51,6 +51,26 @@ fn admission_unsent_next_restores_tristate_and_records_bounded_safe_facts() {
 }
 
 #[test]
+fn quota_send_unsent_candidate_still_requires_authorized_cross_provider_fallback() {
+    let mut ctx = context();
+    let candidate = make_candidate("openai_compatible");
+    let error = GatewayError::service_unavailable("local quota lookup")
+        .with_code("cloudflare_neuron_usage_unavailable");
+    gate::record_unsent_next(
+        &mut ctx,
+        &candidate,
+        &Err(AttemptError::Next(error)),
+        (0, None),
+    );
+    assert!(ctx.crosses_fallback_boundary("other"));
+    assert!(!ctx.fallback_provider_authorized("other"));
+    assert!(!ctx.crosses_fallback_boundary(&candidate.provider_account_id));
+    assert!(ctx.attempted_provider_ids().is_empty());
+    assert_eq!(ctx.route_attempt_count(), 0);
+    assert_eq!(ctx.rejected_candidates.len(), 1);
+}
+
+#[test]
 fn admission_success_stop_and_sent_next_keep_their_own_observation() {
     let candidate = make_candidate("openai_compatible");
     for (result, sent) in [

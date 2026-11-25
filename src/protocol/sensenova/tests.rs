@@ -200,14 +200,20 @@ fn sensenova_chat_reasoning_preserves_system_policy_but_never_restores_rewritten
             {"role":"assistant","content":"tool history","reasoning_content":"exact history"},
             {"role":"user","content":"continue"}
         ]
-    })).unwrap();
-    req.messages[0].content = vec![ContentPart::Text { text: "new policy".into() }];
+    }))
+    .unwrap();
+    req.messages[0].content = vec![ContentPart::Text {
+        text: "new policy".into(),
+    }];
     let plan = UpstreamClient::build_request_plan(&account, &req, "deepseek-flash", false).unwrap();
     let body = plan.body.unwrap();
     assert_eq!(body["messages"][0]["content"], "new policy");
     assert_eq!(body["messages"][1]["reasoning_content"], "exact history");
-    req.messages[1].content = vec![ContentPart::Text { text: "rewritten".into() }];
-    let failure = UpstreamClient::build_request_plan(&account, &req, "deepseek-flash", false).unwrap_err();
+    req.messages[1].content = vec![ContentPart::Text {
+        text: "rewritten".into(),
+    }];
+    let failure =
+        UpstreamClient::build_request_plan(&account, &req, "deepseek-flash", false).unwrap_err();
     assert_eq!(failure.http_status, Some(400));
     assert!(failure.message.contains("rewritten history"));
 }

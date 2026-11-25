@@ -70,6 +70,41 @@ pub fn requested_wire_protocol_family(req: &CanonicalRelayRequest) -> Option<Str
     .map(str::to_string)
 }
 
+pub(crate) fn payload_supported_wire_protocol_families(
+    payload: &crate::routing::candidate::ProviderAccountPayload,
+    fallback_protocol_family: &str,
+    upstream_model: Option<&str>,
+) -> Vec<String> {
+    if let Some(families) = crate::protocol::commandcode::catalog::families(payload, upstream_model)
+    {
+        return families;
+    }
+    if crate::protocol::commandcode::owns_payload(payload) {
+        return vec![OPENAI_CHAT_FAMILY.to_string()];
+    }
+    if crate::protocol::sensenova::owns_payload(payload) {
+        return crate::protocol::sensenova::families(upstream_model);
+    }
+    if crate::protocol::kilo_free::owns_payload(payload)
+        || crate::protocol::vercel_free::owns_payload(payload)
+    {
+        return vec![
+            OPENAI_CHAT_FAMILY.to_string(),
+            OPENAI_LEGACY_COMPLETIONS_FAMILY.to_string(),
+            OPENAI_RESPONSES_FAMILY.to_string(),
+        ];
+    }
+    if crate::protocol::cloudflare_workers_ai::owns_payload(payload) {
+        return vec![
+            OPENAI_CHAT_FAMILY.to_string(),
+            OPENAI_LEGACY_COMPLETIONS_FAMILY.to_string(),
+            OPENAI_RESPONSES_FAMILY.to_string(),
+            OPENAI_EMBEDDINGS_FAMILY.to_string(),
+        ];
+    }
+    surface_supported_wire_protocol_families(&payload.adapter, fallback_protocol_family)
+}
+
 pub fn surface_supported_wire_protocol_families(
     adapter: &str,
     fallback_protocol_family: &str,

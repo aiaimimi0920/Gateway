@@ -21,6 +21,7 @@ pub use admission_rejection::{
     is_provider_ip_block_rejection,
 };
 pub use channel_unavailable::is_channel_unavailable;
+pub(crate) use channel_unavailable::is_transient_distributor_unavailable;
 pub use classification::{classify_native_network_error, classify_native_transport_failure};
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};

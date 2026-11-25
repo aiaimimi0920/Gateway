@@ -85,17 +85,15 @@ pub(crate) fn prepare_route_payload(
     let protocol_family = dim_family
         .map(str::to_owned)
         .unwrap_or_else(|| effective_family(&payload, legacy_family));
-    let surface = if crate::protocol::commandcode::owns_payload(&payload) {
-        crate::protocol::commandcode::catalog::families(&payload, upstream_model.or(model_alias))
-            .unwrap_or_else(|| vec![registry::OPENAI_CHAT_FAMILY.into()])
-    } else if crate::protocol::sensenova::owns_payload(&payload) {
-        crate::protocol::sensenova::families(upstream_model)
-    } else {
-        super::protocol_resolution::surface_supported_wire_protocol_families(
-            &adapter,
-            &protocol_family,
-        )
-    };
+    let surface = super::protocol_resolution::payload_supported_wire_protocol_families(
+        &payload,
+        &protocol_family,
+        if crate::protocol::sensenova::owns_payload(&payload) {
+            upstream_model
+        } else {
+            upstream_model.or(model_alias)
+        },
+    );
     let mut supported_protocol_families =
         super::protocol_resolution::resolve_supported_wire_protocol_families_on_surface(
             raw,

@@ -99,6 +99,7 @@ fn generic_openai_compatible_profile_preset(id: &str) -> ProviderPreset {
     }
 }
 
+#[cfg(feature = "family-openai-compatible-official-api")]
 pub(super) fn vercel_free_preset() -> ProviderPreset {
     use crate::protocol::vercel_free::{AUTH_MODE, MODEL, PRESET};
     ProviderPreset {
@@ -202,11 +203,13 @@ pub fn mistral_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("mistral-api")
 }
 
-pub fn mistral_studio_preset() -> ProviderPreset {
+#[cfg(feature = "line-mistral-openai-official-model-api")]
+pub(super) fn mistral_studio_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("mistral-studio-api")
 }
 
-pub fn mistral_vibe_preset() -> ProviderPreset {
+#[cfg(feature = "line-mistral-openai-official-model-api")]
+pub(super) fn mistral_vibe_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("mistral-vibe-api")
 }
 

@@ -10,6 +10,47 @@ use crate::upstream::common::RequestPlan;
 const RAW_REQUEST_BODY_BASE64_KEY: &str = "__gateway_raw_body_base64";
 const RAW_REQUEST_BODY_CONTENT_TYPE_KEY: &str = "__gateway_raw_body_content_type";
 
+fn session_header(id: &str) -> Option<HeaderValue> {
+    if id.len() == 36 && uuid::Uuid::parse_str(id).is_ok() {
+        HeaderValue::from_str(id).ok()
+    } else {
+        None
+    }
+}
+
+fn metadata_affinity<'a>(get: impl Fn(&str) -> Option<&'a Value>) -> Option<HeaderValue> {
+    ["root_session_id", "session_id"]
+        .iter()
+        .find_map(|key| get(key)?.as_str().and_then(session_header))
+}
+
+pub(super) fn apply_vibe_inference_headers(
+    headers: &mut HeaderMap,
+    payload: &ProviderAccountPayload,
+    req: &CanonicalRelayRequest,
+    extra_headers: Option<&std::collections::HashMap<String, String>>,
+) {
+    if !crate::preset::is_mistral_vibe_wire(payload) {
+        return;
+    }
+    let affinity = extra_headers
+        .and_then(|extra| extra.get(crate::http::request_headers::VIBE_AFFINITY_CONTEXT))
+        .map(String::as_str)
+        .and_then(session_header)
+        .or_else(|| metadata_affinity(|key| req.metadata.as_ref()?.get(key)));
+    if let Some(value) = affinity {
+        headers.insert("x-affinity", value);
+    }
+    headers.insert(
+        rquest::header::ACCEPT,
+        HeaderValue::from_static(if req.stream {
+            "text/event-stream"
+        } else {
+            "application/json"
+        }),
+    );
+}
+
 pub(super) fn finalize_vibe_affinity(
     payload: &ProviderAccountPayload,
     plan: &RequestPlan,
@@ -24,52 +65,60 @@ pub(super) fn finalize_vibe_affinity(
     {
         return;
     }
-    fn session_header(id: &str) -> Option<HeaderValue> {
-        if id.len() == 36 && uuid::Uuid::parse_str(id).is_ok() {
-            HeaderValue::from_str(id).ok()
-        } else {
-            None
-        }
-    }
     // A real CLI header takes precedence because subagents may use the root
     // session for affinity. For a body-only request, reuse the supplied session.
     let value = explicit
         .as_ref()
         .and_then(|header| header.to_str().ok())
         .and_then(session_header)
-        .or_else(|| {
-            let metadata = plan.body.as_ref()?.get("metadata")?;
-            ["root_session_id", "session_id"]
-                .iter()
-                .find_map(|key| metadata.get(*key)?.as_str().and_then(session_header))
-        });
+        .or_else(|| metadata_affinity(|key| plan.body.as_ref()?.get("metadata")?.get(key)));
     if let Some(value) = value {
         headers.insert("x-affinity", value);
     }
 }
 
+#[cfg(feature = "family-openai-compatible-official-api")]
 pub(super) fn preserve_vibe_chat_wire_fields(
     payload: &ProviderAccountPayload,
     req: &CanonicalRelayRequest,
     use_responses_bridge: bool,
     body: &mut Value,
 ) {
-    if use_responses_bridge
-        || !crate::preset::is_mistral_vibe_wire(payload)
-        || !(req.endpoint_kind == EndpointKind::ChatCompletions
-            || payload.bridges_openai_responses_to_chat_completions(req.endpoint_kind))
-    {
+    if use_responses_bridge {
         return;
     }
     let Some(fields) = body.as_object_mut() else {
         return;
     };
+    let chat_surface = matches!(
+        req.endpoint_kind,
+        EndpointKind::ChatCompletions
+            | EndpointKind::Responses
+            | EndpointKind::Messages
+            | EndpointKind::Completions
+    );
+    if (crate::protocol::kilo_free::owns_payload(payload)
+        || crate::protocol::vercel_free::owns_payload(payload))
+        && req.endpoint_kind != EndpointKind::ChatCompletions
+    {
+        for key in ["store", "include", "text", "verbosity", "top_k"] {
+            fields.remove(key);
+        }
+    }
+    if !crate::preset::is_mistral_official_payload(payload) || !chat_surface {
+        return;
+    }
     if !req.extra.contains_key("stream_options") {
         fields.remove("stream_options");
     }
     if req.endpoint_kind != EndpointKind::ChatCompletions {
-        // Codex sets Responses `store: false`; the Vibe Chat service rejects `store`.
-        fields.remove("store");
+        // Codex/Responses and Messages set non-Chat fields; Mistral Chat rejects unknown keys.
+        for key in ["store", "include", "text", "verbosity"] {
+            fields.remove(key);
+        }
+        return;
+    }
+    if !crate::preset::is_mistral_vibe_wire(payload) {
         return;
     }
     // Preserve native key order only when the canonical packer made no

@@ -27,6 +27,7 @@ fn resolve_relative_script(
     development.join(relative)
 }
 
+#[cfg(test)]
 fn resolve_script(
     payload: Option<&Path>,
     executable: Option<&Path>,

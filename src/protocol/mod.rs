@@ -48,7 +48,6 @@ pub mod grok;
 pub mod grok_oauth;
 pub mod hooks;
 pub mod kilo_free;
-pub(crate) mod vercel_free;
 #[cfg(feature = "line-kiro-official-vendor-api")]
 pub mod kiro;
 #[cfg(not(feature = "line-kiro-official-vendor-api"))]
@@ -118,6 +117,7 @@ pub mod udio;
 pub mod udio;
 pub(crate) mod unique_json;
 pub(crate) mod upstream_body;
+pub(crate) mod vercel_free;
 pub mod vertex_express;
 pub mod vertex_oauth;
 pub mod vertex_turn;

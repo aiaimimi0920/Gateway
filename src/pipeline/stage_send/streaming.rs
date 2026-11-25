@@ -41,7 +41,9 @@ pub(super) async fn send(
     }
     let stream_attempt_started_at = Instant::now();
     // Recovery owns its individual sends; a guard here must not count their errors twice.
-    let cancellation = (!crate::protocol::sap_aicore::owns_payload(effective_payload)
+    let quota_guarded = super::super::stage_rate_limit::quota_send::guarded(effective_payload);
+    let cancellation = (!quota_guarded
+        && !crate::protocol::sap_aicore::owns_payload(effective_payload)
         && !matches!(
             candidate.adapter.as_str(),
             "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
@@ -126,7 +128,20 @@ pub(super) async fn send(
                         ctx.native_wire.as_deref(),
                     )
                 },
-                |_| {},
+                |observation| {
+                    if quota_guarded
+                        && observation
+                            .error
+                            .is_some_and(|error| error.code.as_deref() == Some("attempt_cancelled"))
+                    {
+                        observe_provider_attempt_metric(
+                            global_gateway_metrics().as_ref(),
+                            &candidate.provider_account_id,
+                            model,
+                            observation,
+                        );
+                    }
+                },
                 &stream_retry_policy,
                 capacity_retry_allowed,
             )

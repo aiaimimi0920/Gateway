@@ -78,28 +78,36 @@ pub fn translate_openai_sse_to_cohere_stream_with_error<E: Send + 'static>(
     model: String,
 ) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
-        (
-            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
+        Some((
+            Box::pin(inner.fuse())
+                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             CohereStreamState::new(model),
-        ),
-        |(mut inner, mut state)| async move {
+        )),
+        |slot| async move {
+            let (mut inner, mut state) = slot?;
             loop {
                 if let Some(output) = state.outputs.pop_front() {
-                    return Some((Ok(Bytes::from(output)), (inner, state)));
+                    return Some((Ok(Bytes::from(output)), Some((inner, state))));
                 }
 
-                let next_chunk = inner.next().await;
-                match next_chunk {
+                match inner.next().await {
                     Some(Ok(bytes)) => {
                         state.buffer.extend_from_slice(&bytes);
                         state.process_buffer();
                     }
-                    Some(Err(error)) => return Some((Err(error), (inner, state))),
-                    None => return None,
+                    Some(Err(error)) => return Some((Err(error), None)),
+                    None => {
+                        state.finish();
+                        if let Some(output) = state.outputs.pop_front() {
+                            return Some((Ok(Bytes::from(output)), Some((inner, state))));
+                        }
+                        return None;
+                    }
                 }
             }
         },
     )
+    .fuse()
 }
 
 pub fn default_path(_stream: bool) -> &'static str {
@@ -251,6 +259,7 @@ struct CohereStreamState {
     started: bool,
     pending_tools: HashMap<usize, PendingCohereToolCall>,
     latest_usage: Option<TokenUsage>,
+    finish_reason: Option<&'static str>,
 }
 
 impl CohereStreamState {
@@ -263,6 +272,7 @@ impl CohereStreamState {
             started: false,
             pending_tools: HashMap::new(),
             latest_usage: None,
+            finish_reason: None,
         }
     }
 
@@ -286,6 +296,7 @@ impl CohereStreamState {
 
     fn handle_frame(&mut self, frame: crate::protocol::sse_parse::SseFrame) {
         if frame.data == "[DONE]" {
+            self.finish();
             return;
         }
         let Ok(raw) = serde_json::from_str::<Value>(&frame.data) else {
@@ -296,23 +307,8 @@ impl CohereStreamState {
             .and_then(|value| value.as_array())
             .and_then(|value| value.first());
 
-        if let Some(usage) = raw.get("usage") {
-            self.latest_usage = Some(TokenUsage {
-                prompt_tokens: usage
-                    .get("prompt_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                completion_tokens: usage
-                    .get("completion_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                total_tokens: usage
-                    .get("total_tokens")
-                    .and_then(|value| value.as_u64())
-                    .unwrap_or(0),
-                cache_creation_input_tokens: None,
-                cache_read_input_tokens: None,
-            });
+        if let Some(usage) = crate::redis::usage_tracking::parse_upstream_usage(&raw, "openai") {
+            self.latest_usage = Some(usage);
         }
 
         if let Some(text) = choice
@@ -349,15 +345,15 @@ impl CohereStreamState {
             .and_then(|value| value.get("finish_reason"))
             .and_then(|value| value.as_str())
         {
-            let mut indices: Vec<usize> = self.pending_tools.keys().copied().collect();
-            indices.sort_unstable();
-            for index in indices {
-                if let Some(tool) = self.pending_tools.remove(&index) {
-                    if tool.started {
-                        self.emit("tool-call-end", json!({ "index": index }));
-                    }
-                }
-            }
+            self.flush_pending_tools();
+            self.finish_reason = Some(map_cohere_finish_reason(Some(reason), &[]));
+        }
+    }
+
+    fn finish(&mut self) {
+        self.flush_pending_tools();
+        // OpenAI may send usage in a separate frame after the finish reason.
+        if let Some(reason) = self.finish_reason.take() {
             let usage = self.latest_usage.as_ref().map(|usage| {
                 json!({
                     "input_tokens": usage.prompt_tokens,
@@ -367,13 +363,25 @@ impl CohereStreamState {
             });
             let mut payload = json!({
                 "delta": {
-                    "finish_reason": map_cohere_finish_reason(Some(reason), &[])
+                    "finish_reason": reason
                 }
             });
             if let Some(usage) = usage {
                 payload["delta"]["usage"] = usage;
             }
             self.emit("message-end", payload);
+        }
+    }
+
+    fn flush_pending_tools(&mut self) {
+        let mut indices: Vec<usize> = self.pending_tools.keys().copied().collect();
+        indices.sort_unstable();
+        for index in indices {
+            if let Some(tool) = self.pending_tools.remove(&index) {
+                if tool.started {
+                    self.emit("tool-call-end", json!({ "index": index }));
+                }
+            }
         }
     }
 

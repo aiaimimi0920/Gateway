@@ -20,6 +20,7 @@ impl NativeCodexConnection {
         self.0.lock().generation
     }
 
+    #[cfg(test)]
     pub(crate) fn client(&self, timeout: Duration) -> (reqwest::Client, u64) {
         self.select(timeout, false, true)
     }

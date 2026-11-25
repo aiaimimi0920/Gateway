@@ -141,7 +141,20 @@ pub fn is_explicit_admission_rejection(error: &GatewayError) -> bool {
         // 503 or a transport failure does not prove that execution never started.
         || (error.http_status == Some(503)
             && error.code.as_deref() == Some("system_cpu_overloaded"))
+        || is_sent_vercel_credit_rejection(error)
         || is_provider_ip_block(error)
         || super::is_channel_unavailable(error)
         || super::model_pricing::is_admission_rejection(error)
+}
+
+fn is_sent_vercel_credit_rejection(error: &GatewayError) -> bool {
+    // Unsent quota denials consume no slot and cannot authorize another replay.
+    !error.retryable
+        && matches!(
+            error.fallback_hint,
+            super::FallbackHint::FallbackProvider { .. }
+        )
+        && error.code.as_deref() == Some("vercel_monthly_credit_exhausted")
+        && error.http_status == Some(402)
+        && error.message == "Vercel metered models are paused for this key after a credit rejection; zero-price models remain eligible."
 }

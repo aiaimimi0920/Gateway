@@ -60,7 +60,16 @@ impl Check {
         let cell = {
             let mut accounts = self.guard.accounts.lock().await;
             if accounts.len() >= 1024 && !accounts.contains_key(&self.account) {
-                return Err(unavailable());
+                let now = OffsetDateTime::now_utc();
+                accounts.retain(|_, slot| {
+                    Arc::strong_count(slot) > 1
+                        || slot.try_lock().map_or(true, |snap| {
+                            snap.as_ref().is_some_and(|s| s.is_current(now))
+                        })
+                });
+                if accounts.len() >= 1024 {
+                    return Err(unavailable());
+                }
             }
             accounts.entry(self.account.clone()).or_default().clone()
         };
@@ -122,16 +131,20 @@ impl Check {
 
 impl Snapshot {
     fn cached_decision(&self, now: OffsetDateTime) -> Option<Result<(), GatewayError>> {
+        self.is_current(now).then(|| self.decision(now))
+    }
+
+    fn is_current(&self, now: OffsetDateTime) -> bool {
         let age = now - self.checked_at;
         if now.date() != self.checked_at.date() || age.is_negative() {
-            return None;
+            return false;
         }
         let ttl = if self.usage.is_some() {
             TTL
         } else {
             time::Duration::seconds(5)
         };
-        (self.usage.is_some_and(|n| n >= STOP) || age < ttl).then(|| self.decision(now))
+        self.usage.is_some_and(|n| n >= STOP) || age < ttl
     }
 
     fn decision(&self, now: OffsetDateTime) -> Result<(), GatewayError> {
@@ -145,10 +158,17 @@ impl Snapshot {
                 let reset = reset
                     .format(&Rfc3339)
                     .expect("UTC quota reset is representable");
-                Err(GatewayError::rate_limited(
+                let mut error = GatewayError::rate_limited(
                     format!("Cloudflare Workers AI reached the 9000 Neuron safety threshold; resumes after {reset}."),
                     retry,
-                ).with_code("cloudflare_neuron_budget_paused"))
+                )
+                .with_code("cloudflare_neuron_budget_paused")
+                .with_retry_after_ms(Some(retry));
+                error.retryable = false;
+                error.fallback_hint = crate::error::FallbackHint::FallbackProvider {
+                    reason: "Cloudflare Workers AI daily neuron safety threshold reached".into(),
+                };
+                Err(error)
             }
             None => Err(unavailable()),
         }
@@ -156,10 +176,22 @@ impl Snapshot {
 }
 
 fn unavailable() -> GatewayError {
-    GatewayError::service_unavailable(
+    let mut error = GatewayError::service_unavailable(
         "Cloudflare Workers AI usage could not be verified; inference was not sent. Check Account Analytics Read permission.",
     )
-    .with_code("cloudflare_neuron_usage_unavailable")
+    .with_code("cloudflare_neuron_usage_unavailable");
+    error.retryable = false;
+    error.fallback_hint = crate::error::FallbackHint::FallbackProvider {
+        reason: "Cloudflare Workers AI usage could not be verified".into(),
+    };
+    error
+}
+
+pub(crate) fn local_denial(error: &GatewayError) -> bool {
+    matches!(
+        error.code.as_deref(),
+        Some("cloudflare_neuron_budget_paused" | "cloudflare_neuron_usage_unavailable")
+    )
 }
 
 #[derive(Deserialize)]

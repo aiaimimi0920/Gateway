@@ -46,6 +46,9 @@ impl UpstreamClient {
             && !crate::protocol::lobsterai::owns_payload(payload)
             && !crate::protocol::sap_aicore::owns_payload(payload)
             && !crate::protocol::quick_oauth::owns_payload(payload)
+            && !crate::protocol::cloudflare_workers_ai::owns_payload(payload)
+            && !crate::protocol::kilo_free::owns_payload(payload)
+            && !crate::protocol::vercel_free::owns_payload(payload)
             && payload.resolve_execution_mode(req.endpoint_kind)
                 == ProviderExecutionMode::DirectHttp
             && req.endpoint_kind == EndpointKind::Responses
@@ -154,7 +157,10 @@ impl UpstreamClient {
                 && !crate::protocol::commandcode::owns_payload(payload)
                 && !crate::protocol::lobsterai::owns_payload(payload)
                 && !crate::protocol::sap_aicore::owns_payload(payload)
-                && !crate::protocol::quick_oauth::owns_payload(payload),
+                && !crate::protocol::quick_oauth::owns_payload(payload)
+                && !crate::protocol::cloudflare_workers_ai::owns_payload(payload)
+                && !crate::protocol::kilo_free::owns_payload(payload)
+                && !crate::protocol::vercel_free::owns_payload(payload),
             "Agnes test attempted an unisolated native Codex transport"
         );
         let plan = if wire.is_some_and(|w| w.compact) {

@@ -155,7 +155,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           providerId,
           providerLabel,
           providerPreset,
-          authMode: typeof provider.auth_mode === "string" ? provider.auth_mode : null,
+          authMode: typeof credential.auth_mode === "string" ? credential.auth_mode : typeof provider.auth_mode === "string" ? provider.auth_mode : null,
           baseUrl,
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",

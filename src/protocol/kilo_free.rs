@@ -48,8 +48,12 @@ pub fn validate(payload: &ProviderAccountPayload, adapter: &str) -> Result<(), G
     if !owns_payload(payload) {
         return Ok(());
     }
-    if !cfg!(feature = "line-kilo-free")
-        || adapter != "openai_compatible"
+    if !cfg!(feature = "line-kilo-free") {
+        return Err(crate::implementation_lines::compiled_out_error_for_line(
+            crate::implementation_lines::RefactoredImplementationLine::KiloFree,
+        ));
+    }
+    if adapter != "openai_compatible"
         || payload.base_url != BASE
         || !payload.api_key.is_empty()
         || payload.auth_token.is_some()
@@ -105,6 +109,7 @@ pub fn finalize_headers(
                     | "tool_choice"
                     | "parallel_tool_calls"
                     | "response_format"
+                    | "reasoning_effort"
                     | "n"
                     | "logprobs"
                     | "top_logprobs"

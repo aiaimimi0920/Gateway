@@ -2,11 +2,15 @@
 use super::GatewayError;
 
 pub fn is_channel_unavailable(error: &GatewayError) -> bool {
-    if !matches!(error.http_status, Some(400 | 404 | 500 | 502 | 503)) {
+    let Some(status) = error.http_status else {
+        return false;
+    };
+    if !matches!(status, 400 | 404 | 500 | 502 | 503) {
         return false;
     }
-    let known_code = matches!(
-        error.code.as_deref(),
+    let code = error.code.as_deref();
+    if !matches!(
+        code,
         None | Some(
             "model_not_found"
                 | "upstream_stream_model_not_found"
@@ -14,27 +18,43 @@ pub fn is_channel_unavailable(error: &GatewayError) -> bool {
                 | "channel_not_found"
                 | "model_not_available"
         )
-    );
-    if !known_code {
+    ) {
         return false;
     }
-    let message = error.message.trim();
-    // SSE preflight prefixes its structured error code; HTTP errors do not.
-    let message = message
-        .strip_prefix("model_not_found: ")
-        .or_else(|| message.strip_prefix("get_channel_failed: "))
-        .unwrap_or(message);
-    let message = message
-        .split(" (request id: ")
-        .next()
-        .unwrap_or(message)
-        .trim();
+    let message = strip_channel_decorations(&error.message);
     if let Some(model) = message
         .strip_prefix("Model \"")
         .and_then(|v| v.strip_suffix("\" is not available for this group"))
     {
         return !model.trim().is_empty();
     }
+    is_transient_distributor_unavailable(status, code, Some(message))
+}
+
+pub(crate) fn is_transient_distributor_unavailable(
+    status: u16,
+    code: Option<&str>,
+    message: Option<&str>,
+) -> bool {
+    if !matches!(status, 400 | 404 | 500 | 502 | 503) {
+        return false;
+    }
+    if !matches!(
+        code,
+        None | Some(
+            "model_not_found"
+                | "upstream_stream_model_not_found"
+                | "get_channel_failed"
+                | "channel_not_found"
+                | "model_not_available"
+        )
+    ) {
+        return false;
+    }
+    let Some(raw) = message else {
+        return false;
+    };
+    let message = strip_channel_decorations(raw);
     if let Some(detail) = message.strip_prefix("当前分组 ").and_then(|v| {
         v.strip_suffix(" 无可用渠道")
             .or_else(|| v.strip_suffix(" 无可用渠道（distributor）"))
@@ -46,9 +66,9 @@ pub fn is_channel_unavailable(error: &GatewayError) -> bool {
             .is_some_and(|(group, model)| !group.trim().is_empty() && !model.trim().is_empty());
     }
     if !matches!(
-        error.code.as_deref(),
+        code,
         Some("model_not_found" | "upstream_stream_model_not_found" | "get_channel_failed")
-    ) || !matches!(error.http_status, Some(404 | 500 | 502 | 503))
+    ) || !matches!(status, 404 | 500 | 502 | 503)
     {
         return false;
     }
@@ -70,6 +90,20 @@ pub fn is_channel_unavailable(error: &GatewayError) -> bool {
     detail
         .split_once(" 下模型 ")
         .is_some_and(|(group, model)| !group.trim().is_empty() && !model.trim().is_empty())
+}
+
+fn strip_channel_decorations(raw: &str) -> &str {
+    let message = raw.trim();
+    // SSE preflight prefixes its structured error code; HTTP errors do not.
+    let message = message
+        .strip_prefix("model_not_found: ")
+        .or_else(|| message.strip_prefix("get_channel_failed: "))
+        .unwrap_or(message);
+    message
+        .split(" (request id: ")
+        .next()
+        .unwrap_or(message)
+        .trim()
 }
 
 #[cfg(test)]

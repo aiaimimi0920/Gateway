@@ -21,7 +21,18 @@ async fn translated_endpoint(
     output_usage: &str,
     gemini: bool,
 ) {
-    let upstream = Upstream::start(StatusCode::OK, true, SSE_REPLY).await;
+    // Chat upstreams can send the final accounting separately from the last choice.
+    let reply = if gemini {
+        concat!(
+            "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"local stream reply\"}}]}\n\n",
+            "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":null}\n\n",
+            "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3,\"total_tokens\":10}}\n\n",
+            "data: [DONE]\n\n",
+        )
+    } else {
+        SSE_REPLY
+    };
+    let upstream = Upstream::start(StatusCode::OK, true, reply).await;
     let fixture = TestState::new();
     let mut selected = candidate(&upstream, "typed-translated");
     // 明确声明仅支持 chat 上游，Responses 请求据此进入生产桥接路径。
@@ -44,7 +55,8 @@ async fn translated_endpoint(
     let PipelineOutput::Sse(stream) = output else {
         panic!("expected typed SSE");
     };
-    assert_eq!(controller.snapshot().active_count, 0);
+    // The body retains its concurrency permit until the terminal observation.
+    assert_eq!(controller.snapshot().active_count, 1);
     assert_eq!(controller.snapshot().consecutive_successes, 0);
     let mut stream: std::pin::Pin<
         Box<
@@ -80,7 +92,16 @@ async fn translated_endpoint(
     assert!(text.contains("local stream reply"));
     assert!(text.contains(input_usage), "{text}");
     assert!(text.contains(output_usage), "{text}");
+    if gemini {
+        let terminal: Vec<_> = text
+            .lines()
+            .filter(|line| line.contains("\"finishReason\""))
+            .collect();
+        assert_eq!(terminal.len(), 1, "{text}");
+        assert!(terminal[0].contains("\"totalTokenCount\":10"), "{text}");
+    }
     assert_eq!(controller.snapshot().consecutive_successes, 1);
+    assert_eq!(controller.snapshot().active_count, 0);
     drop(stream);
     assert_eq!(controller.snapshot().consecutive_successes, 1);
     assert_eq!(ctx.route_attempt_count.load(Ordering::Relaxed), 1);
