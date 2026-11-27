@@ -1,4 +1,5 @@
 //! Credential and provider probes retain the exact secret grant, ordering and result attribution.
+mod cursor;
 
 use super::{
     console_request_context, json_with_no_store, required_console_management_token,
@@ -35,6 +36,9 @@ pub async fn probe_console_credential(
         .verify_secret_grant(&request, &actor, secret_grant)?;
 
     let snapshot = state.route_config.snapshot();
+    if let Some(result) = cursor::account(&snapshot, credential_id.trim()) {
+        return Ok(json_with_no_store(serde_json::json!({"result": result})));
+    }
     let target = snapshot
         .select_credential_probe_target(&credential_id)
         .ok_or_else(|| {
@@ -130,6 +134,9 @@ pub async fn probe_console_provider(
                 })
         })
         .transpose()?;
+    if let Some(result) = cursor::pool(&snapshot, &provider_id, options.as_ref())? {
+        return Ok(json_with_no_store(serde_json::json!({"result": result})));
+    }
     if let Some(plan) = &named_plan {
         targets.retain(|target| snapshot.test_plan_matches(target, plan));
         if targets.is_empty() {
@@ -139,38 +146,12 @@ pub async fn probe_console_provider(
             );
         }
     }
-    if let Some(ids) = options
-        .as_ref()
-        .and_then(|options| options.credential_ids.as_ref())
-    {
-        if ids
-            .iter()
-            .any(|id| !targets.iter().any(|target| &target.credential_id == id))
-        {
-            return Err(GatewayError::bad_request(
-                "A selected credential is not in this provider pool.",
-            )
-            .with_code("console_probe_credential_mismatch"));
-        }
-        targets.retain(|target| ids.contains(&target.credential_id));
-    }
-    if let Some(scope) = options.as_ref().and_then(|request| request.scope.as_ref()) {
-        targets.retain(|target| match scope {
-            crate::provider_runtime::ConsoleTestScope::Pool => true,
-            crate::provider_runtime::ConsoleTestScope::Subpool { id } => {
-                snapshot.credential_subpool_id(target) == Some(id.as_str())
-            }
-            crate::provider_runtime::ConsoleTestScope::Account { id } => {
-                target.credential_id == *id
-            }
-        });
-        if targets.is_empty() {
-            return Err(GatewayError::bad_request(
-                "The selected test scope has no accounts in this pool.",
-            )
-            .with_code("console_probe_scope_mismatch"));
-        }
-    }
+    select_requested(
+        &mut targets,
+        options.as_ref(),
+        |t| &t.credential_id,
+        |t, id| snapshot.credential_subpool_id(t) == Some(id),
+    )?;
     if targets.len() > 128 {
         return Err(
             GatewayError::bad_request("Select at most 128 accounts for a manual test.")
@@ -298,4 +279,40 @@ fn credential_probe_checked_at() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "unknown".to_string())
+}
+
+// Validate the operator's selection identically for executable and display-only targets.
+fn select_requested<T>(
+    targets: &mut Vec<T>,
+    options: Option<&crate::provider_runtime::ConsoleProbeRequest>,
+    credential_id: impl Fn(&T) -> &str,
+    in_subpool: impl Fn(&T, &str) -> bool,
+) -> Result<(), GatewayError> {
+    use crate::provider_runtime::ConsoleTestScope;
+    if let Some(ids) = options.and_then(|o| o.credential_ids.as_ref()) {
+        if ids
+            .iter()
+            .any(|id| !targets.iter().any(|t| credential_id(t) == id))
+        {
+            return Err(GatewayError::bad_request(
+                "A selected credential is not in this provider pool.",
+            )
+            .with_code("console_probe_credential_mismatch"));
+        }
+        targets.retain(|t| ids.iter().any(|id| id == credential_id(t)));
+    }
+    if let Some(scope) = options.and_then(|o| o.scope.as_ref()) {
+        targets.retain(|t| match scope {
+            ConsoleTestScope::Pool => true,
+            ConsoleTestScope::Subpool { id } => in_subpool(t, id),
+            ConsoleTestScope::Account { id } => credential_id(t) == id,
+        });
+        if targets.is_empty() {
+            return Err(GatewayError::bad_request(
+                "The selected test scope has no accounts in this pool.",
+            )
+            .with_code("console_probe_scope_mismatch"));
+        }
+    }
+    Ok(())
 }

@@ -17,6 +17,12 @@ impl ProviderAttemptGate {
     }
 
     pub fn begin_attempt(&self) -> Result<(), GatewayError> {
+        self.reserve_attempt()?;
+        self.record_attempt();
+        Ok(())
+    }
+
+    fn reserve_attempt(&self) -> Result<(), GatewayError> {
         if let Some(circuit) = &self.circuit {
             circuit.begin()?;
         }
@@ -24,6 +30,10 @@ impl ProviderAttemptGate {
             self.finish_neutral();
             return Err(error);
         }
+        Ok(())
+    }
+
+    fn record_attempt(&self) {
         self.attempt_audit.record();
         self.smart_routing.begin_account_request(
             self.sticky_scope.as_deref(),
@@ -41,7 +51,14 @@ impl ProviderAttemptGate {
         {
             attempted.push(self.provider_account_id.clone());
         }
-        Ok(())
+    }
+
+    pub(in crate::pipeline) fn cursor_remote_reserve(&self) -> Result<(), GatewayError> {
+        self.reserve_attempt()
+    }
+
+    pub(in crate::pipeline) fn cursor_remote_sent(&self) {
+        self.record_attempt();
     }
 
     pub fn observe_error(&self, error: &GatewayError) {
@@ -258,6 +275,30 @@ pub(super) mod tests {
             circuit: None,
             defer_until_quota: false,
         }
+    }
+
+    #[test]
+    fn cursor_remote_reserved_attempt_has_no_audit_until_written() {
+        let gate = gate().with_pinned("diagnostic-provider", "cursor-account", "cursor-personal");
+        assert!(gate.cursor_remote_reserve().is_ok());
+        assert_eq!(gate.request_budget.attempts(), 1);
+        assert_eq!(
+            gate.outbound_attempt_count
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert!(gate.attempted_provider_ids.lock().is_empty());
+        gate.cursor_remote_sent();
+        assert_eq!(gate.request_budget.attempts(), 1);
+        assert_eq!(
+            gate.outbound_attempt_count
+                .load(std::sync::atomic::Ordering::Relaxed),
+            1
+        );
+        assert_eq!(
+            &*gate.attempted_provider_ids.lock(),
+            &["diagnostic-provider"]
+        );
     }
 
     #[tokio::test]

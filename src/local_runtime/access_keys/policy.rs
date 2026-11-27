@@ -4,6 +4,8 @@ use crate::auth::{adapter::AuthRequest, session::AuthenticatedSession};
 use crate::routing::candidate::RouteCandidate;
 use serde::Deserialize;
 
+mod cursor;
+
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Restrictions {

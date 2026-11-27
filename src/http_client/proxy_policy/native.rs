@@ -1,4 +1,4 @@
-//! Native Antigravity IO uses the same frozen proxy sources and explicit-empty bypass contract.
+//! Native protocol IO shares the frozen proxy sources and explicit-empty bypass contract.
 use super::{bypass_text, frozen_addresses, platform_bypass, Addresses};
 use hyper_util::client::proxy::matcher::Matcher;
 
@@ -38,6 +38,17 @@ pub(crate) fn matcher() -> Matcher {
         .ok();
     let system = environment.is_none().then(platform_bypass).flatten();
     build(addresses, bypass_text(environment, system))
+}
+
+/// Keep the selected URL before Matcher discards its path/query/fragment.
+/// Native protocols with narrower tunnel support must validate this source too.
+pub(crate) fn https_source() -> Option<&'static str> {
+    use crate::http_client::proxy_settings::{active, Mode};
+    match active().mode {
+        Mode::Off => None,
+        Mode::Custom => Some(&active().url),
+        Mode::Auto => frozen_addresses().https.as_deref(),
+    }
 }
 
 #[cfg(test)]

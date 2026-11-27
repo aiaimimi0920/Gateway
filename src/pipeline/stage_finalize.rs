@@ -132,6 +132,8 @@ pub struct RequestAuditFinalizeSnapshot {
     pub selected_breaker_open: Option<bool>,
     pub selected_degradation_reasons: Vec<String>,
     pub route_attempt_count: u32,
+    pub route_revision: Option<String>,
+    pub cursor_remote_delivery_unknown: Option<bool>,
     pub(crate) observed_upstream_status: Option<Option<u16>>,
     pub attempted_provider_ids: Vec<String>,
     pub rejected_candidates: Vec<crate::routing::config::RejectedCandidate>,

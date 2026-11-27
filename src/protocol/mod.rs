@@ -30,6 +30,8 @@ pub mod codex_wire;
 pub mod cohere;
 pub mod commandcode;
 pub mod copilot;
+pub(crate) mod cursor_auth;
+pub(crate) mod cursor_remote;
 pub mod dashscope;
 pub mod dim_oauth;
 pub mod freebuff;

@@ -6,6 +6,9 @@ use serde_json::{json, Value};
 impl OpenAiToResponsesState {
     pub(super) fn build_completed_response(&self, finish_status: Option<&str>) -> Value {
         let mut output = Vec::<(usize, Value)>::new();
+        if let Some(thinking) = &self.cursor_thinking {
+            output.push((0, thinking.item(true)));
+        }
         if let Some(message) = self.message.as_ref() {
             output.push((
                 message.output_index,

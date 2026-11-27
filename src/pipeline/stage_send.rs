@@ -75,6 +75,7 @@ mod chatgpt_recovery;
 mod chatgpt_stream_recovery;
 #[cfg(all(test, feature = "copilot-sdk-runtime"))]
 mod copilot_tests;
+mod cursor_remote_dispatch;
 mod endpoint_policy;
 mod feedback;
 mod freebuff_catalog;
@@ -129,6 +130,13 @@ pub async fn run(
     ctx: &mut PipelineContext,
     state: &Arc<AppState>,
 ) -> Result<PipelineOutput, GatewayError> {
+    crate::routing::config::cursor::local_auto::reject(&ctx.canonical_req)?;
+    if let Some(result) = cursor_remote_dispatch::try_send(ctx, state).await {
+        return result;
+    }
+    crate::routing::config::cursor::reject_unavailable_model(
+        ctx.canonical_req.requested_model.as_deref(),
+    )?;
     recovery_wait::run(ctx, state).await
 }
 
@@ -137,28 +145,7 @@ async fn run_candidates(
     state: &Arc<AppState>,
     waiting: &mut Option<recovery_wait::WaitingCandidate>,
 ) -> Result<PipelineOutput, GatewayError> {
-    if matches!(
-        ctx.canonical_req.endpoint_kind,
-        EndpointKind::Embeddings
-            | EndpointKind::ImagesGenerations
-            | EndpointKind::ImagesEdits
-            | EndpointKind::MusicGenerations
-            | EndpointKind::VideosGenerations
-            | EndpointKind::AudioTranscriptions
-            | EndpointKind::AudioSpeech
-            | EndpointKind::Search
-            | EndpointKind::Fetch
-            | EndpointKind::ResearchCreate
-            | EndpointKind::ResearchList
-            | EndpointKind::ResearchGet
-            | EndpointKind::CreditsBalance
-            | EndpointKind::SystemOne
-    ) && ctx.canonical_req.stream
-    {
-        return Err(GatewayError::bad_request(
-            "This endpoint does not support streaming responses",
-        ));
-    }
+    endpoint_policy::validate_streaming(&ctx.canonical_req)?;
 
     if ctx.candidates.is_empty() {
         return Err(GatewayError::server_error(

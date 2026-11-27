@@ -30,6 +30,18 @@ pub(crate) async fn run(
     ) {
         return owner.finish(Err(error)).await;
     }
+    // A durable predecessor skips ordinary route selection. It must not turn
+    // the reserved private model into a new generation on a historical SAP pin.
+    if ctx.canonical_req.previous_response_id.is_some() {
+        if let Err(error) = crate::routing::config::cursor::local_auto::reject(&ctx.canonical_req) {
+            return owner.finish(Err(error)).await;
+        }
+        if let Err(error) = crate::routing::config::cursor::reject_unavailable_model(
+            ctx.canonical_req.requested_model.as_deref(),
+        ) {
+            return owner.finish(Err(error)).await;
+        }
+    }
     let gateway_predecessor = ctx
         .canonical_req
         .previous_response_id

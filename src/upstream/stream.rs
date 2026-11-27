@@ -22,6 +22,7 @@ mod completion;
 mod model_declaration;
 mod observation;
 mod responses_terminal;
+pub(crate) use responses_terminal::tap as observe_responses_terminal;
 mod usage;
 pub(crate) use completion::tap_messages_completion_with_error;
 pub(crate) use completion::tap_native_responses_completion_with_error;

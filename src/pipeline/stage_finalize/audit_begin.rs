@@ -121,6 +121,14 @@ pub fn snapshot_request_audit(ctx: &PipelineContext) -> RequestAuditFinalizeSnap
         selected_breaker_open: ctx.selected_breaker_open,
         selected_degradation_reasons: ctx.selected_degradation_reasons.clone(),
         route_attempt_count: ctx.route_attempt_count(),
+        route_revision: ctx
+            .cash_route_snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.revision().id().to_owned()),
+        cursor_remote_delivery_unknown: ctx
+            .cursor_remote_uncertain
+            .as_ref()
+            .map(|value| value.load(std::sync::atomic::Ordering::SeqCst)),
         observed_upstream_status: ctx.observed_upstream_status,
         attempted_provider_ids: ctx.attempted_provider_ids(),
         rejected_candidates: ctx.rejected_candidates.clone(),

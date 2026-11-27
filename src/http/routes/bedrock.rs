@@ -26,6 +26,8 @@ pub async fn handle_converse(
     JsonBody(body): JsonBody,
 ) -> Result<Response, GatewayError> {
     let canonical = bedrock_converse::normalize_converse(body, Some(model), false)?;
+    let cursor =
+        crate::routing::config::cursor::private_request(canonical.requested_model.as_deref());
     let mut ctx = PipelineContext::new(canonical, token);
     apply_public_request_headers(
         &mut ctx,
@@ -43,6 +45,9 @@ pub async fn handle_converse(
 
     match run_pipeline(ctx, &state).await? {
         PipelineOutput::Json(value) => {
+            if cursor {
+                return Ok(Json(value).into_response());
+            }
             let canonical_resp = openai::unpack_openai_response(&value)?;
             Ok(Json(bedrock_converse::build_converse_response(&canonical_resp)).into_response())
         }

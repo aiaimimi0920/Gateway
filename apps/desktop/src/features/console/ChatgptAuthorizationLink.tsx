@@ -4,9 +4,11 @@ import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { kiroAuthorizationUrl } from "./kiroAuthorizationUrl";
 import { lobsteraiAuthorizationUrl } from "./lobsteraiAuthorizationUrl";
 import { quickAuthorizationUrl } from "./quickAuthorizationUrl";
+import { cursorAuthorizationUrl } from "./cursorAuthorizationUrl";
 
-type AuthorizationKind = "chatgpt" | "antigravity" | "vertex" | "grok" | "grok-device" | "accio" | "kiro" | "quick" | "freebuff" | "dim-china" | "dim-global" | "nous" | "lobsterai" | "luma";
+type AuthorizationKind = "cursor" | "chatgpt" | "antigravity" | "vertex" | "grok" | "grok-device" | "accio" | "kiro" | "quick" | "freebuff" | "dim-china" | "dim-global" | "nous" | "lobsterai" | "luma";
 function authorizationUrl(value: string, kind: AuthorizationKind): string | null {
+  if (kind === "cursor") return cursorAuthorizationUrl(value);
   if (kind === "lobsterai") return lobsteraiAuthorizationUrl(value);
   if (kind === "kiro") return kiroAuthorizationUrl(value);
   if (kind === "quick") return quickAuthorizationUrl(value);
@@ -32,6 +34,7 @@ export function ChatgptAuthorizationLink({ value, busy, kind = "chatgpt" }: { va
   const { t } = useUiLocale();
   const [failed, setFailed] = useState(false);
   const href = authorizationUrl(value, kind);
+  useEffect(() => { setFailed(false); }, [value, kind]);
   useEffect(() => {
     const fail = () => setFailed(true);
     window.addEventListener("gateway:oauth-browser-failed", fail);
@@ -45,5 +48,9 @@ export function ChatgptAuthorizationLink({ value, busy, kind = "chatgpt" }: { va
       : <Button disabled>{label}</Button>}
     {!href && <Notice tone="danger">{t("授权链接无效，请重新登录。", "Invalid authorization URL. Sign in again.")}</Notice>}
     {failed && <Notice tone="danger">{t("无法打开浏览器，请复制授权链接后手动打开。", "Cannot open the browser. Copy the authorization link and open it manually.")}</Notice>}
+    {href && kind === "cursor" && <>
+      <p className="n-muted">{t("若未打开浏览器，可复制下方链接到浏览器地址栏；使用同一链接，无需重复创建授权。", "If no browser opens, copy this same link into its address bar. Do not create another authorization.")}</p>
+      <input aria-label="Cursor 授权链接" value={href} readOnly onFocus={event => event.target.select()} />
+    </>}
   </>;
 }

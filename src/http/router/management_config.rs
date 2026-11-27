@@ -12,6 +12,7 @@ use axum::{
 use std::sync::Arc;
 
 pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
+    let router = internal_console::mount_cursor_import(router);
     let router = internal_console::mount_sap_deployments(router);
     let router = internal_console::mount_luma_tasks(router);
     let router = internal_console::mount_luma_mcp(router);

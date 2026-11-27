@@ -12,6 +12,7 @@ export function addCatalogProvider(document: ConsoleRouteDocument, template: Pro
   provider.credentials = [];
   const next = structuredClone(document);
   next.providers.push(provider);
+  if (template.id === "cursor-remote-oauth") return next;
   const patterns = [...new Set([...value.supportedModels, ...Object.entries(value.workflow?.mappings ?? {}).filter(([, targets]) => targets.length).map(([source]) => source)])];
   for (const pattern of patterns) {
     const route = next.model_routes.find((entry) => isRecord(entry) && entry.pattern === pattern);

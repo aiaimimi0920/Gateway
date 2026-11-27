@@ -1,6 +1,34 @@
 //! Candidate endpoint policy ownership.
 use super::*;
 
+pub(super) fn validate_streaming(
+    req: &crate::protocol::canonical::CanonicalRelayRequest,
+) -> Result<(), GatewayError> {
+    if matches!(
+        req.endpoint_kind,
+        EndpointKind::Embeddings
+            | EndpointKind::ImagesGenerations
+            | EndpointKind::ImagesEdits
+            | EndpointKind::MusicGenerations
+            | EndpointKind::VideosGenerations
+            | EndpointKind::AudioTranscriptions
+            | EndpointKind::AudioSpeech
+            | EndpointKind::Search
+            | EndpointKind::Fetch
+            | EndpointKind::ResearchCreate
+            | EndpointKind::ResearchList
+            | EndpointKind::ResearchGet
+            | EndpointKind::CreditsBalance
+            | EndpointKind::SystemOne
+    ) && req.stream
+    {
+        return Err(GatewayError::bad_request(
+            "This endpoint does not support streaming responses",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn observe_provider_rate_limit_rejection(
     rejections: &mut ProviderRateLimitRejections,
     error: &GatewayError,

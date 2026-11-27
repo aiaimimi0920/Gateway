@@ -233,7 +233,8 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           baseUrl,
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",
-          enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
+          enabled: provider.auth_mode === "cursor_remote" ? credential.enabled === true
+            : typeof credential.enabled === "boolean" ? credential.enabled : true,
           supportedModels: filterVercelAccountModels(providerPreset, credential.auth_mode ?? provider.auth_mode,
             selection || supportedModels.length > 0 ? supportedModels : providerSupportedModels),
           groupIds: accountGroups.map((group) => group.id),

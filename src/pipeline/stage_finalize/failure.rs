@@ -7,6 +7,7 @@ pub async fn run_failure(
     ctx: &PipelineContext,
     state: &Arc<AppState>,
 ) {
+    crate::protocol::cursor_remote::runtime::settle(ctx.cursor_remote_settled.as_ref()).await;
     // The last candidate's refusal says nothing about delivery to earlier candidates.
     let not_sent = ctx.route_attempt_count() == 0;
     crate::cash_billing::finalization::failure(ctx.cash_charge.as_ref(), not_sent, state).await;

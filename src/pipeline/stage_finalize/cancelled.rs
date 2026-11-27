@@ -2,6 +2,7 @@
 use super::*;
 
 pub async fn run_cancelled(ctx: &PipelineContext, state: &Arc<AppState>) {
+    crate::protocol::cursor_remote::runtime::settle(ctx.cursor_remote_settled.as_ref()).await;
     crate::cash_billing::finalization::failure(
         ctx.cash_charge.as_ref(),
         ctx.route_attempt_count() == 0,

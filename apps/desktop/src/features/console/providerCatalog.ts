@@ -27,6 +27,7 @@ import { NOUS_TEMPLATE, writeNousProvider } from "./nousCatalog";
 import { LOBSTERAI_TEMPLATE, writeLobsterAiProvider } from "./lobsteraiCatalog";
 import { QUICK_OAUTH_TEMPLATE, writeQuickProvider } from "./quickCatalog";
 import { SEARCH_CATALOG_TEMPLATES } from "./providerSearchCatalog";
+import { CURSOR_TEMPLATE, cursorProvider } from "./cursorCatalog";
 
 export type ProviderCatalogCategory =
   | "mainstream"
@@ -358,6 +359,7 @@ const STANDARD_CATALOG_TEMPLATES = [
   NOUS_TEMPLATE,
   LOBSTERAI_TEMPLATE,
   QUICK_OAUTH_TEMPLATE,
+  CURSOR_TEMPLATE,
   CUSTOM_API_TEMPLATE,
 ] as const satisfies readonly ProviderCatalogTemplate[];
 
@@ -390,6 +392,7 @@ export function providerDefinitionFromCatalogDraft(
   template: ProviderCatalogTemplate,
   draft: ProviderCatalogDraft,
 ): Record<string, unknown> {
+  if (template.id === CURSOR_TEMPLATE.id) return cursorProvider(draft);
   if (template.id === "lumalabs-mcp") return lumaMcpCatalogProvider(draft);
   if (template.id === "accio-oauth" && draft.baseUrl !== "https://phoenix-gw.alibaba.com") {
     throw new Error("Accio OAuth 仅支持固定的 https://phoenix-gw.alibaba.com 地址。");

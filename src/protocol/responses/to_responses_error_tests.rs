@@ -34,10 +34,14 @@ async fn typed_exact_frame_limit_and_fragmented_input_preserve_bytes() {
         Ok::<_, Error>(Bytes::from_static(b"event: response.created\ndata: {}\n")),
         Ok(Bytes::from_static(b"\n")),
     ]);
-    let chunks =
-        translate_openai_sse_to_responses_with_limit_and_error(inner, "test".into(), wire.len())
-            .collect::<Vec<_>>()
-            .await;
+    let chunks = translate_openai_sse_to_responses_with_limit_and_error(
+        inner,
+        "test".into(),
+        wire.len(),
+        None,
+    )
+    .collect::<Vec<_>>()
+    .await;
     assert_eq!(chunks.len(), 1);
     assert_eq!(chunks.into_iter().next().unwrap().unwrap().as_ref(), wire);
 }
@@ -55,6 +59,7 @@ async fn typed_frame_limit_is_protocol_terminal_and_stops_upstream_polling() {
         inner,
         "test".into(),
         8,
+        None,
     ));
     let error = stream.next().await.unwrap().unwrap_err();
     assert!(matches!(error, StreamError::Protocol(_)));

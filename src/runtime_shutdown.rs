@@ -17,6 +17,8 @@ pub(super) async fn finish(state: &Arc<AppState>) -> anyhow::Result<()> {
     state.lifecycle.dim_oauth.join().await;
     state.lifecycle.luma_oauth.join().await;
     state.lifecycle.nous_oauth.join().await;
+    state.lifecycle.cursor_import.join().await;
+    state.lifecycle.cursor_remote.join().await;
     state.lifecycle.lobsterai_oauth.join().await;
     state.lifecycle.quick_oauth.join().await;
     state.lifecycle.grok_oauth.join().await;

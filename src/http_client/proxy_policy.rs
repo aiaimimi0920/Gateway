@@ -231,7 +231,6 @@ pub(super) fn configure_auto_reqwest(
     builder
 }
 
-#[cfg(feature = "cpa-rust-transport")]
 pub(crate) mod native;
 
 #[cfg(test)]

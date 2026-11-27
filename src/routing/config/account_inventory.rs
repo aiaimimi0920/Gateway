@@ -81,6 +81,12 @@ pub(super) fn build_route_account_group_inventory(
                     .collect(),
             });
         } else {
+            // The generic executor deliberately masks every Cursor credential. The console
+            // shows the operator's explicit choice for this provider in the same snapshot.
+            let cursor_enabled_id = provider_config
+                .filter(|config| cursor_remote::is_provider(config))
+                .and_then(|config| config.credentials.iter().find(|c| c.enabled == Some(true)))
+                .and_then(|c| c.id.as_deref());
             for credential in &provider.credential_pool {
                 let account_id = credential.id.trim().to_string();
                 let account_groups = memberships
@@ -108,7 +114,8 @@ pub(super) fn build_route_account_group_inventory(
                     credential_id: Some(account_id),
                     base_url: trim_optional_field(Some(credential.payload.base_url.as_str())),
                     mode: "credential".to_string(),
-                    enabled: credential.enabled,
+                    enabled: credential.enabled
+                        || cursor_enabled_id == Some(credential.id.as_str()),
                     supported_models: (if credential.supported_models.is_empty()
                         && !credential.explicit_model_selection
                     {

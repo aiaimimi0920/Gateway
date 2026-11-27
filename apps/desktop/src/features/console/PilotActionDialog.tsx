@@ -1,4 +1,4 @@
-import { Dialog } from "@neuro/ui";
+import { Button, Dialog, Notice } from "@neuro/ui";
 import type { ConsoleCredentialProbeResult, ConsoleProviderProbeResponse, ConsoleRouteDocument, CredentialTestPolicy, CredentialTestScope } from "../../api/contracts";
 import type { AccountsLedgerPilotAccount, AccountsLedgerPilotSection } from "./AccountsLedgerWorkspace";
 import type { RouteManagedAccount } from "./routeAccountCatalog";
@@ -16,6 +16,7 @@ import { isSunoMediaProvider } from "./sunoProbeModels";
 import { isChataibotMediaProvider } from "./chataibotProbeModels";
 import { isLumaAgentsProvider } from "./lumaAgents";
 import { isRecord } from "./routeDocument";
+import { isCursorProvider } from "./cursorCatalog";
 
 
 import { ProviderTestDialog } from "./ProviderTestDialog";
@@ -126,6 +127,18 @@ export function PilotActionDialog({
   const testSection = pilotActionDialog?.kind === "probe"
     ? accountPilotSections?.find((section) => section.providerIds.includes(pilotActionDialog.providerId))
     : pilotActionDialog?.kind === "provider-probe" || pilotActionDialog?.kind === "provider-schedule" ? pilotActionDialog.section : null;
+  const targetIds = pilotActionDialog?.kind === "probe" ? [pilotActionDialog.providerId] : testSection?.providerIds;
+  if (targetIds?.length && targetIds.every(id => {
+    const provider = testPolicyDocument?.providers.find(p => isRecord(p) && p.id === id);
+    return isRecord(provider) && isCursorProvider(provider);
+  })) {
+    return <Dialog open title={t("Cursor 账号测试", "Cursor account test")} closeLabel={t("关闭弹窗", "Close dialog")}
+      onOpenChange={open => { if (!open) closePilotActionDialog(); }}>
+      <Notice>{t("Cursor 不支持通用探测或定时测试，未向 Cursor 发送请求。是否已启用请查看账号的调度开关。",
+        "Cursor does not support generic or scheduled tests. No request was sent to Cursor. Check the account's dispatch switch to see whether it is enabled.")}</Notice>
+      <div className="n-dialog-actions"><Button onClick={closePilotActionDialog}>{t("关闭", "Close")}</Button></div>
+    </Dialog>;
+  }
   if (testSection && pilotActionDialog) {
     if (pilotActionDialog.kind === "probe" && isLumalabsMediaProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
       return <LumalabsMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}

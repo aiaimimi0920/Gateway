@@ -9,7 +9,9 @@ mod dial;
 mod proxy;
 #[cfg(test)]
 mod proxy_tests;
+pub use async_compression;
 pub use body_limit::{is_body_limit_error, BodyLimitExceeded};
+pub use http2;
 mod initialization;
 pub use initialization::Initialization;
 mod pool;

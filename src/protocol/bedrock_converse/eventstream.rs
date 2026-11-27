@@ -19,6 +19,34 @@ use std::{
 
 type UsageHandle = Arc<Mutex<Option<crate::protocol::canonical::TokenUsage>>>;
 
+/// Project an already validated terminal text response through the shared AWS encoder.
+pub(crate) fn encode_buffered_text(
+    value: &serde_json::Value,
+) -> Result<Vec<Bytes>, ProtocolStreamError> {
+    use serde_json::json;
+    let text = value
+        .pointer("/output/message/content/0/text")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| invalid("missing terminal text"))?;
+    if value.get("usage").is_none() || value.get("metrics").is_none() {
+        return Err(invalid("missing terminal usage or metrics"));
+    }
+    let mut output = frame::Output::default();
+    output.emit("messageStart", json!({"role":"assistant"}))?;
+    output.delta(0, false, text)?;
+    output.emit("contentBlockStop", json!({"contentBlockIndex":0}))?;
+    output.emit("messageStop", json!({"stopReason":"end_turn"}))?;
+    output.emit(
+        "metadata",
+        json!({"usage":value["usage"],"metrics":value["metrics"]}),
+    )?;
+    let mut frames = Vec::new();
+    while let Some(frame) = output.pop() {
+        frames.push(frame);
+    }
+    Ok(frames)
+}
+
 pub(crate) fn encode_failure(
     error: &ProtocolStreamError,
 ) -> Result<Option<Bytes>, ProtocolStreamError> {

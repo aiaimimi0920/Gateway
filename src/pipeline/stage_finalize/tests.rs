@@ -196,3 +196,21 @@ fn apply_stream_completion_semantics_updates_snapshot_route_trace() {
 
     assert_eq!(trace["canonicalCompletionSemantics"], "length");
 }
+
+#[test]
+fn cursor_remote_stream_audit_preserves_unknown_delivery_tristate() {
+    for value in [None, Some(false), Some(true)] {
+        let mut ctx = make_ctx();
+        ctx.cursor_remote_uncertain =
+            value.map(|value| Arc::new(std::sync::atomic::AtomicBool::new(value)));
+        let snapshot = snapshot_request_audit(&ctx);
+        let direct = build_route_trace_from_ctx(&ctx, None);
+        let streamed = build_route_trace_from_snapshot(&snapshot, None);
+        assert_eq!(streamed["cursorRemoteDeliveryUnknown"], json!(value));
+        assert_eq!(streamed["routeRevision"], direct["routeRevision"]);
+        assert_eq!(
+            streamed["cursorRemoteDeliveryUnknown"],
+            direct["cursorRemoteDeliveryUnknown"]
+        );
+    }
+}

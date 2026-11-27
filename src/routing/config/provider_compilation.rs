@@ -12,7 +12,15 @@ use super::*;
 /// credential has a fully-merged payload.  The provider's `payload` field
 /// contains the base (first credential or provider-level key), and
 /// `credential_pool` stores all credential payloads for round-robin selection.
-pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow::Error> {
+pub(super) fn compile_provider(
+    mut cfg: ProviderConfigYaml,
+) -> Result<CompiledProvider, anyhow::Error> {
+    if cursor_remote::is_provider(&cfg) {
+        // Inventory retains the original document. Generic execution/probe payloads never get Cursor tokens.
+        for credential in &mut cfg.credentials {
+            credential.auth_token = None;
+        }
+    }
     copilot::validate_declaration(&cfg)?;
     if cfg.credentials.iter().any(|credential| {
         credential
@@ -239,7 +247,9 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     discovery: cred.discovery.clone(),
                     id: cred_id,
                     payload: cred_payload,
-                    enabled: if copilot::is_provider(&cfg) {
+                    enabled: if cursor_remote::is_provider(&cfg) {
+                        false
+                    } else if copilot::is_provider(&cfg) {
                         copilot::credential_enabled(cred)
                     } else {
                         cred.enabled.unwrap_or(true)

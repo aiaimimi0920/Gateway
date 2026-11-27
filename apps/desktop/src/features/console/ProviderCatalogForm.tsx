@@ -39,13 +39,13 @@ export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, lock
   const fields = { t, workflow: draft.workflow!, update, locked };
   const allTabs = [["basics", t("基础与账号", "Basics & account")], ["request", t("调用配置", "Call settings")], ["mapping", t("模型映射", "Model mapping")],
   ["tests", t("自动测试", "Automatic tests")], ["pool", t("账号池", "Account pool")], ["health", t("站点健康", "Site health")]] as const;
-  const tabs = allTabs.filter(([id]) => !["lumalabs-mcp", "kilo-free"].includes(selectedTemplate.id) || id === "basics");
+  const tabs = allTabs.filter(([id]) => !["lumalabs-mcp", "kilo-free", "cursor-remote-oauth"].includes(selectedTemplate.id) || id === "basics");
   const basics = (
     <div className="nt-provider-catalog__basics">
       <CatalogField name={t("名称", "Name")}><Input value={draft.providerLabel} disabled={locked} onChange={event => setDraft(current => ({ ...current, providerLabel: event.target.value }))} /></CatalogField>
       <CatalogField name="Provider ID"><Input value={draft.providerId} maxLength={256} disabled={locked}
         onChange={(event) => setDraft((current) => ({ ...current, providerId: event.target.value }))} /></CatalogField>
-      {selectedTemplate.id !== "cloudflare-workers-ai" && <CatalogField name="Base URL"><Input type="url" value={draft.baseUrl} disabled={locked}
+      {!["cloudflare-workers-ai", "cursor-remote-oauth"].includes(selectedTemplate.id) && <CatalogField name="Base URL"><Input type="url" value={draft.baseUrl} disabled={locked}
         readOnly={!selectedTemplate.custom && !["azure-api", "sap-aicore-chat"].includes(selectedTemplate.id)} spellCheck={false}
         onChange={(event) => setDraft((current) => setCatalogDeploymentUrl(current, event.target.value))} /></CatalogField>}
       {selectedTemplate.id === "sap-aicore-chat" && <SapAiCoreFields draft={draft} setDraft={setDraft} disabled={locked}
@@ -60,6 +60,7 @@ export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, lock
         maxLength={2048} spellCheck={false} onChange={(event) => { const kiroProfileArn = event.target.value;
           setDraft((current) => ({ ...current, kiroProfileArn, baseUrl: kiroProfileTarget(kiroProfileArn) ?? "" })); }} /></CatalogField>}
       <CatalogFirstAccountFields template={selectedTemplate} draft={draft} setDraft={setDraft} locked={locked} t={t} />
+      {selectedTemplate.id === "cursor-remote-oauth" && <Notice>{t(selectedTemplate.descriptionZh, selectedTemplate.descriptionEn)}</Notice>}
     </div>
   );
   const panel = {

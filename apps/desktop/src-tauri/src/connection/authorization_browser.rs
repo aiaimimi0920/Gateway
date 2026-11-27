@@ -9,6 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{AppHandle, Manager, Url};
+#[path = "authorization_browser_cursor.rs"]
+mod cursor;
 #[path = "authorization_browser_lobster.rs"]
 mod lobster;
 
@@ -25,6 +27,9 @@ struct Launch {
 }
 
 fn allowed(url: &Url) -> bool {
+    if url.host_str() == Some("www.cursor.com") {
+        return cursor::allowed(url);
+    }
     if url.host_str() == Some("lobsterai.youdao.com") {
         return lobster::allowed(url);
     }

@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [features]
 management-ui = ["dep:gateway-embedded-ui", "dep:mime_guess"]
-cpa-rust-transport = ["dep:gateway-cpa-http-transport", "gateway-core/cpa-rust-transport"]
+cpa-rust-transport = ["gateway-core/cpa-rust-transport"]
 # Runtime ownership only; public Copilot inference is not enabled by this feature.
 copilot-sdk-runtime = ["dep:gateway-copilot-runtime"]
 # Never active in a release build, even when --all-features is supplied.
@@ -188,7 +188,7 @@ rustls = "0.23"
 rustls-native-certs = "0.8"
 
 # HTTP client — wreq with Chrome TLS emulation; retain rquest consumer aliases.
-gateway-cpa-http-transport = { path = "crates/cpa-http-transport", optional = true }
+gateway-cpa-http-transport = { path = "crates/cpa-http-transport" }
 gateway-copilot-runtime = { path = "crates/gateway-copilot-runtime", optional = true }
 gateway-cpa-claude-profile = { path = "crates/cpa-claude-profile" }
 rquest = { package = "wreq", version = "=0.16.1", default-features = false, features = ["webpki-roots", "tokio-rt", "stream", "json", "form", "query", "charset", "system-proxy", "gzip", "brotli", "deflate", "zstd"] }

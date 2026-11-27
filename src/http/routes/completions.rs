@@ -21,6 +21,9 @@ use crate::protocol::canonical::EndpointKind;
 use crate::protocol::openai::{normalize_chat_completions, normalize_legacy_completions};
 use crate::state::AppState;
 
+#[path = "completions/cursor_publication.rs"]
+pub(super) mod cursor_publication;
+
 /// POST /v1/chat/completions
 ///
 /// Accepts an OpenAI-compatible chat completions request, routes it through
@@ -45,14 +48,22 @@ pub async fn handle_chat_completions(
     capture_vibe_affinity(&mut ctx, &headers);
     ctx.query_params = query_params;
 
-    match run_pipeline(ctx, &state).await? {
-        PipelineOutput::Json(v) => Ok(Json(v).into_response()),
+    let (sender, mut publication) = tokio::sync::oneshot::channel();
+    ctx.cursor_tool_publication = Some(sender);
+    let response = match run_pipeline(ctx, &state).await? {
+        PipelineOutput::Json(v) => Json(v).into_response(),
         PipelineOutput::Sse(stream) => {
-            Ok(into_sse_response(stream, EndpointKind::ChatCompletions).into_response())
+            into_sse_response(stream, EndpointKind::ChatCompletions).into_response()
         }
-        PipelineOutput::Binary(_) => Err(GatewayError::server_error(
-            "unexpected binary response for chat completions endpoint",
-        )),
+        PipelineOutput::Binary(_) => {
+            return Err(GatewayError::server_error(
+                "unexpected binary response for chat completions endpoint",
+            ))
+        }
+    };
+    match publication.try_recv() {
+        Ok(guard) => Ok(cursor_publication::attach(response, guard)),
+        Err(_) => Ok(response),
     }
 }
 

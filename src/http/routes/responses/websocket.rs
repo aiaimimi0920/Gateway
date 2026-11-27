@@ -1,16 +1,13 @@
 //! Serial Responses WS turns: per-create governance, bounded frames and cancellation.
 use super::*;
-use crate::protocol::{
-    codex_wire::NativeRequestWire,
-    stream_decode::{BoundedSseDecoder, DecodeStep},
-};
+use crate::protocol::codex_wire::NativeRequestWire;
 use crate::upstream::client::NativeResponsesSocket;
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     http::Uri,
 };
 use futures::{SinkExt, StreamExt};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::time::Duration;
 
 pub(crate) async fn handle_websocket(
@@ -58,6 +55,7 @@ async fn serve(
 ) -> Result<(), ()> {
     let (mut writer, mut reader) = socket.split();
     let upstream = NativeResponsesSocket::default();
+    let mut cursor_connection = super::cursor_websocket::Connection::new();
     loop {
         let next = tokio::time::timeout(Duration::from_secs(300), reader.next()).await;
         let text = match next {
@@ -80,13 +78,14 @@ async fn serve(
             &headers,
             upstream.clone(),
         );
-        let ctx = match ctx {
+        let mut ctx = match ctx {
             Ok(ctx) => ctx,
             Err(error) => {
                 send_error(&mut writer, &error.message).await?;
                 continue;
             }
         };
+        let cursor_turn = cursor_connection.begin(&mut ctx);
         // Signal cancellation inside the pipeline and await failure settlement;
         // dropping an admission future here could strand a token reservation.
         let (cancel, cancelled) = tokio::sync::watch::channel(false);
@@ -104,7 +103,7 @@ async fn serve(
                 }
             }
         };
-        let mut stream = match output {
+        let stream = match output {
             Ok(PipelineOutput::Sse(stream)) => stream,
             Ok(_) => {
                 send_error(&mut writer, "Expected Responses event stream").await?;
@@ -115,50 +114,14 @@ async fn serve(
                 continue;
             }
         };
-        let mut decoder = BoundedSseDecoder::new(16 * 1024 * 1024 + 1024);
-        let mut upstream_failed = false;
-        loop {
-            let chunk = tokio::select! {
-                biased;
-                chunk = stream.next() => chunk,
-                message = reader.next() => {
-                    if !control(&mut writer, message).await { return Ok(()); }
-                    continue;
-                },
-            };
-            match chunk {
-                Some(Ok(chunk)) => decoder.push_chunk(chunk),
-                Some(Err(_)) => {
-                    if !upstream_failed {
-                        send_error(&mut writer, "Responses WebSocket stream interrupted").await?;
-                    }
-                    break;
-                }
-                None => break,
-            }
-            loop {
-                match decoder.decode_next() {
-                    DecodeStep::Frame(frame) => {
-                        if let Ok(event) = serde_json::from_str::<Value>(&frame.data) {
-                            upstream_failed |= matches!(
-                                event["type"].as_str(),
-                                Some("error" | "response.failed" | "response.incomplete")
-                            );
-                        }
-                        // Await every write: slow clients backpressure upstream.
-                        tokio::time::timeout(
-                            Duration::from_secs(30),
-                            writer.send(Message::Text(frame.data)),
-                        )
-                        .await
-                        .map_err(|_| ())?
-                        .map_err(|_| ())?;
-                    }
-                    DecodeStep::NeedInput => break,
-                    DecodeStep::Error(_) => return Err(()),
-                }
-            }
-        }
+        super::websocket_delivery::relay(
+            &mut writer,
+            &mut reader,
+            stream,
+            cursor_turn,
+            &mut cursor_connection,
+        )
+        .await?;
     }
 }
 
@@ -171,7 +134,7 @@ fn prepare_turn(
     headers: &HeaderMap,
     upstream: NativeResponsesSocket,
 ) -> Result<PipelineContext, GatewayError> {
-    let body = crate::http::native_json_decode::decode(text.as_bytes())
+    let mut body = crate::http::native_json_decode::decode(text.as_bytes())
         .map_err(|_| GatewayError::bad_request("Invalid Responses WebSocket JSON"))?;
     if body["type"] != "response.create"
         || body.get("stream").is_some_and(|value| value != true)
@@ -181,6 +144,7 @@ fn prepare_turn(
             "Expected response.create without background or stream=false",
         ));
     }
+    super::cursor_websocket::project_body(&mut body);
     let mut ctx = prepare_context(body, token, query, headers, state)?;
     ctx.stream = true;
     ctx.canonical_req.stream = true;
@@ -200,7 +164,7 @@ fn prepare_turn(
     Ok(ctx)
 }
 
-async fn control(
+pub(super) async fn control(
     writer: &mut futures::stream::SplitSink<WebSocket, Message>,
     message: Option<Result<Message, axum::Error>>,
 ) -> bool {
@@ -215,7 +179,7 @@ async fn control(
     false
 }
 
-async fn send_error(
+pub(super) async fn send_error(
     writer: &mut futures::stream::SplitSink<WebSocket, Message>,
     message: &str,
 ) -> Result<(), ()> {

@@ -29,6 +29,7 @@ mod attempt_audit;
 mod copilot_dispatch;
 mod copilot_identity;
 mod cpa_scope;
+mod cursor_remote_identity;
 mod fallback_authorization;
 mod lifecycle;
 pub mod request_budget;
@@ -139,6 +140,16 @@ pub struct PipelineContext {
     /// Last admitted send, including failed candidates; never a synthetic winner.
     last_provider_attempt: attempt_audit::LastAttempt,
     luma_generation_audit: Option<crate::protocol::luma_agents::generation_audit::GenerationAudit>,
+    /// Finalization waits for remote IPC send receipts and child cleanup after cancellation.
+    cursor_remote_settled: Option<tokio::sync::watch::Receiver<bool>>,
+    cursor_remote_uncertain: Option<Arc<std::sync::atomic::AtomicBool>>,
+    pub(crate) cursor_tool_publication:
+        Option<tokio::sync::oneshot::Sender<crate::protocol::cursor_remote::runtime::Publication>>,
+    /// Server-owned WS identity; never copied from a caller header or session ID.
+    pub(crate) cursor_remote_connection: Option<uuid::Uuid>,
+    /// Non-owning capability issued only by this socket's published tool phase.
+    pub(crate) cursor_remote_continuation:
+        Option<crate::protocol::cursor_remote::runtime::Continuation>,
 
     // ── Provider selection info (populated by stage_send) ─────────────────
     /// Provider account ID of the winning candidate.
@@ -270,6 +281,11 @@ impl PipelineContext {
             attempted_provider_ids: Arc::new(Mutex::new(Vec::new())),
             last_provider_attempt: Default::default(),
             luma_generation_audit: None,
+            cursor_remote_settled: None,
+            cursor_remote_uncertain: None,
+            cursor_tool_publication: None,
+            cursor_remote_connection: None,
+            cursor_remote_continuation: None,
             selected_provider_id: None,
             selected_provider_credential_id: None,
             selected_provider_label: None,

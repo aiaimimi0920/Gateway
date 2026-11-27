@@ -52,6 +52,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         crate::protocol::canonical::EndpointKind::CreditsBalance => ("/v1/credits/balance", "GET"),
         crate::protocol::canonical::EndpointKind::SystemOne => ("/v1/systemone", "POST"),
     };
+    let path =
+        crate::protocol::cursor_remote::ingress::auth_path(&ctx.canonical_req).unwrap_or(path);
 
     let auth_req = AuthRequest {
         authorization: ctx.bearer_token.as_ref().map(|t| format!("Bearer {}", t)),

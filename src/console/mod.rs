@@ -8,6 +8,7 @@ pub mod backup;
 pub mod chatgpt_oauth;
 #[cfg(feature = "copilot-sdk-runtime")]
 pub(crate) mod copilot_catalog;
+pub(crate) mod cursor_import;
 pub mod diagnostics;
 pub mod dim_oauth;
 pub mod document;

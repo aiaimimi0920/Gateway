@@ -4,6 +4,7 @@ pub mod browser_executor;
 pub mod cohere;
 pub mod completions;
 pub mod credentials;
+mod cursor_native;
 pub mod dashscope;
 mod dashscope_error;
 pub mod embeddings;

@@ -220,6 +220,9 @@ impl RouteConfigSnapshot {
         }
 
         for provider in &self.compiled.providers {
+            if provider.payload.auth_mode.as_deref() == Some(cursor_remote::AUTH_MODE) {
+                continue;
+            }
             if provider.uses_provider_default_account() {
                 let default_id = provider_default_account_id(&provider.id);
                 if credential_id == default_id {
@@ -263,6 +266,9 @@ impl RouteConfigSnapshot {
             .providers
             .iter()
             .find(|provider| provider.id == provider_id)?;
+        if provider.payload.auth_mode.as_deref() == Some(cursor_remote::AUTH_MODE) {
+            return Some(Vec::new());
+        }
         if provider.uses_provider_default_account() {
             return Some(vec![CredentialProbeTarget {
                 credential_id: provider_default_account_id(&provider.id),
@@ -294,6 +300,9 @@ impl RouteConfigSnapshot {
     pub(crate) fn scheduled_credential_probe_targets(&self) -> Vec<ScheduledCredentialProbeTarget> {
         let mut targets = Vec::new();
         for provider in &self.compiled.providers {
+            if provider.payload.auth_mode.as_deref() == Some(cursor_remote::AUTH_MODE) {
+                continue;
+            }
             if provider.uses_provider_default_account() {
                 if provider.scheduled_probe_enabled {
                     targets.push(ScheduledCredentialProbeTarget {

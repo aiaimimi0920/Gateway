@@ -63,6 +63,8 @@ async fn handle(
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let canonical = dashscope::normalize(body, multimodal, stream)?;
+    let cursor =
+        crate::routing::config::cursor::private_request(canonical.requested_model.as_deref());
     let model = canonical.requested_model.clone().unwrap_or_default();
     let mut ctx = PipelineContext::new(canonical, token);
     apply_public_request_headers(
@@ -74,6 +76,10 @@ async fn handle(
     )?;
     ctx.query_params = query;
     match run_pipeline(ctx, &state).await? {
+        PipelineOutput::Json(value) if cursor => Ok(Json(value).into_response()),
+        PipelineOutput::Sse(stream) if cursor => {
+            Ok(into_sse_response(stream, EndpointKind::ChatCompletions).into_response())
+        }
         PipelineOutput::Json(value) => Ok(Json(dashscope::response::from_openai(
             &value,
             multimodal,

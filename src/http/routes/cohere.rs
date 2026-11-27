@@ -34,6 +34,15 @@ pub async fn handle_chat_v2(
         &["x-client-name"],
     )?;
     ctx.query_params = query_params;
+    if crate::routing::config::cursor::private_request(canonical.requested_model.as_deref()) {
+        let (sender, publication) = tokio::sync::oneshot::channel();
+        ctx.cursor_tool_publication = Some(sender);
+        return super::cursor_native::response(
+            run_pipeline(ctx, &state).await?,
+            publication,
+            crate::protocol::canonical::ProtocolFamily::CohereChat,
+        );
+    }
 
     match run_pipeline(ctx, &state).await? {
         PipelineOutput::Json(value) => {

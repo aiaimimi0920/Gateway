@@ -26,6 +26,9 @@ import { QuickOAuthPanel, type QuickOAuthOperations } from "./QuickOAuthPanel";
 import { isVertexOAuthProvider, vertexAuthorizationTarget } from "./vertexOAuth";
 import { VertexOAuthPanel } from "./VertexOAuthPanel";
 import type { VertexOAuthOperations } from "./useVertexOAuth";
+import { CursorImportPanel } from "./CursorImportPanel";
+import { isCursorProvider } from "./cursorCatalog";
+import type { CursorOperations } from "./useCursorImport";
 
 type OAuthAuthDeps = {
   client: GatewayApiClient;
@@ -36,9 +39,11 @@ type OAuthAuthDeps = {
   webDisabled: boolean;
   hasSecretAccess: boolean;
   credentialProvider(id: string): Record<string, unknown> | undefined;
+  credentialSecretConfigured?(providerId: string, credentialId: string, field: string): boolean;
   confirmSecretAccess(): Promise<void>;
   onRequestSecretDialog(): void;
   onSaved(): void;
+  onCursorSaved?(): void;
   onOpenGeminiManualAdd(family: NonNullable<ReturnType<typeof googleWebAuthFamily>>, id: string, label?: string, source?: string): void;
 };
 
@@ -53,6 +58,7 @@ export function useConsoleOAuthAuthentication(deps: OAuthAuthDeps) {
   const kiroOperations = useMemo<KiroOAuthOperations>(() => new Map(), [deps.client, deps.managementToken]);
   const vertexOperations = useMemo<VertexOAuthOperations>(() => new Map(), [deps.client, deps.managementToken]);
   const freebuffOperations = useMemo<FreebuffLoginOperations>(() => new Map(), [deps.client, deps.managementToken]);
+  const cursorOperations = useMemo<CursorOperations>(() => new Map(), [deps.client, deps.managementToken]);
 
   const common = (providerId: string, credentialId?: string) => ({
     client: deps.client,
@@ -81,6 +87,13 @@ export function useConsoleOAuthAuthentication(deps: OAuthAuthDeps) {
     credentialId?: string,
   ) => {
     const provider = deps.credentialProvider(providerId);
+    if (isCursorProvider(provider)) {
+      const account = (Array.isArray(provider?.credentials) ? provider.credentials : [])
+        .find((entry: Record<string, unknown>) => entry.id === credentialId);
+      return <CursorImportPanel {...common(providerId, credentialId)} onSaved={deps.onCursorSaved ?? deps.onSaved} operations={cursorOperations} onActivityChange={onActivityChange}
+        savedAccount={account ? { name: String(account.account_name ?? ""), expiresAt: typeof account.expires_at === "string" ? account.expires_at : null,
+          hasToken: Boolean(credentialId && deps.credentialSecretConfigured?.(providerId, credentialId, "auth_token")) } : undefined} />;
+    }
     if (isLobsterAiProvider(provider)) {
       return <LobsterAiOAuthPanel {...common(providerId, credentialId)} operations={lobsterOperations} onActivityChange={onActivityChange} />;
     }
@@ -169,6 +182,7 @@ export function useConsoleOAuthAuthentication(deps: OAuthAuthDeps) {
   const reauthenticationOnly = (providerId: string) => {
     const provider = deps.credentialProvider(providerId);
     return (
+      isCursorProvider(provider) ||
       isLobsterAiProvider(provider) ||
       isQuickOAuthProvider(provider) ||
       isNousProvider(provider) ||

@@ -73,11 +73,27 @@ async fn run_inner(
 ) -> Result<(), GatewayError> {
     ctx.explicit_fallback_provider_ids.clear();
     ctx.local_key_fallback_provider_ids.clear();
+    crate::routing::config::cursor::local_auto::reject(&ctx.canonical_req)?;
     let requested_model = ctx.canonical_req.requested_model.clone();
     let model = requested_model.as_deref();
     let requested_account_group_id = ctx.account_group_id.clone();
     let route_snapshot = state.route_config.snapshot();
     ctx.cash_route_snapshot = Some(route_snapshot.clone());
+    if crate::routing::config::cursor::private_request(model) {
+        // A socket continuation can never become a new ACP Run on config drift,
+        // even when its predecessor is stale or the remote owner is unavailable.
+        let remote_continuation = ctx.cursor_remote_connection.is_some()
+            && ctx
+                .canonical_req
+                .raw_body
+                .get("previous_response_id")
+                .is_some();
+        if remote_continuation || super::cursor_remote_identity::configured(state, &route_snapshot)
+        {
+            return super::cursor_remote_identity::select(ctx, state).await;
+        }
+        return Err(crate::routing::config::cursor::unavailable());
+    }
     let mut account_group_constraint = route_snapshot
         .account_group_constraint(requested_account_group_id.as_deref())
         .map_err(map_account_group_selection_error)?;

@@ -34,6 +34,7 @@ pub use pack::{pack_responses, pack_responses_bridge, pack_responses_preserving_
 use response::normalize_arguments_value;
 pub use response::{build_responses_success, unpack_responses_response};
 pub use to_openai_chat::translate_responses_sse_to_openai_chat_with_error;
+pub(crate) use to_responses::translate_cursor_sse_to_responses;
 pub use to_responses::{
     translate_openai_sse_to_responses, translate_openai_sse_to_responses_with_error,
 };

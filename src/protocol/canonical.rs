@@ -155,7 +155,7 @@ pub struct CanonicalTool {
 }
 
 /// Token counts reported by the upstream provider.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenUsage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,

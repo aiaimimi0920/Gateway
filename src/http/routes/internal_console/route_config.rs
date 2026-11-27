@@ -75,6 +75,7 @@ pub async fn commit_route_config(
     )?;
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
         .map_err(secret_patch_to_gateway_error)?;
+    crate::console::cursor_import::validate_generic_update(active.document(), &candidate)?;
     crate::provider_discovery::job::validate(&candidate)
         .map_err(|error| GatewayError::bad_request(error.to_string()))?;
     if crate::provider_discovery::job::new_request(active.document(), &candidate) {
@@ -125,6 +126,7 @@ pub async fn validate_route_config(
     )?;
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
         .map_err(secret_patch_to_gateway_error)?;
+    crate::console::cursor_import::validate_generic_update(active.document(), &candidate)?;
     let validated = validate_route_document(candidate).map_err(|diagnostics| {
         let mut error = GatewayError::bad_request(diagnostics.to_string())
             .with_code("console_route_validation_failed");

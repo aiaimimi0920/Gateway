@@ -58,6 +58,15 @@ async fn handle_model_action(
         &["x-goog-api-key"],
     )?;
     ctx.query_params = query_params;
+    if crate::routing::config::cursor::private_request(Some(&model)) {
+        let (sender, publication) = tokio::sync::oneshot::channel();
+        ctx.cursor_tool_publication = Some(sender);
+        return super::cursor_native::response(
+            run_pipeline(ctx, &state).await?,
+            publication,
+            crate::protocol::canonical::ProtocolFamily::GeminiGenerateContent,
+        );
+    }
 
     match (stream, run_pipeline(ctx, &state).await?) {
         (false, PipelineOutput::Json(value)) => build_generate_content_response(value),

@@ -22,7 +22,10 @@ use crate::protocol::canonical::EndpointKind;
 use crate::protocol::responses::normalize_responses;
 use crate::state::AppState;
 
+mod cursor_websocket;
+mod tool_publication;
 mod websocket;
+mod websocket_delivery;
 pub(crate) use websocket::handle_websocket;
 mod stored;
 pub(crate) use stored::{handle_public_create, handle_stored_operation};
@@ -52,7 +55,13 @@ pub async fn handle_responses(
     .await?;
     let mut ctx = prepare_context(body, token, query_params, &headers, &state)?;
     ctx.native_wire = Some(Arc::new(wire));
-    respond(run_pipeline(ctx, &state).await?)
+    let (sender, mut publication) = tokio::sync::oneshot::channel();
+    ctx.cursor_tool_publication = Some(sender);
+    let response = respond(run_pipeline(ctx, &state).await?)?;
+    match publication.try_recv() {
+        Ok(guard) => Ok(tool_publication::attach(response, guard)),
+        Err(_) => Ok(response),
+    }
 }
 
 fn respond(output: PipelineOutput) -> Result<Response, GatewayError> {

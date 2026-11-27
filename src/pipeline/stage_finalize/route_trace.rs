@@ -27,6 +27,8 @@ pub(super) fn build_route_trace_from_ctx(
         "debugForcedUpstreamProtocolFamily": ctx.forced_upstream_protocol,
         "endpointKind": endpoint_kind_name(ctx),
         "routeAttemptCount": ctx.route_attempt_count(),
+        "cursorRemoteDeliveryUnknown": ctx.cursor_remote_uncertain.as_ref()
+            .map(|v| v.load(std::sync::atomic::Ordering::SeqCst)),
         "candidateCount": ctx.candidates.len(),
         "routeRevision": ctx.cash_route_snapshot.as_ref().map(|snapshot| snapshot.revision().id()),
         "rejectedCandidates": ctx.rejected_candidates,
@@ -73,6 +75,8 @@ pub(super) fn build_route_trace_from_snapshot(
         "requestedProtocolFamily": snapshot.protocol_family.clone(),
         "endpointKind": snapshot.endpoint_kind.clone(),
         "routeAttemptCount": snapshot.route_attempt_count,
+        "routeRevision": snapshot.route_revision,
+        "cursorRemoteDeliveryUnknown": snapshot.cursor_remote_delivery_unknown,
         "attemptedProviderIds": snapshot.attempted_provider_ids.clone(),
         "rejectedCandidates": snapshot.rejected_candidates,
         "selectedPipelineMode": snapshot.selected_execution_mode.clone(),

@@ -34,9 +34,13 @@ pub(in super::super) fn track(
         legacy_lease: freebuff_lease_handle,
         terminal,
     } = owner;
+    let native_cursor_bedrock = ctx.selected_execution_mode.as_deref() == Some("cursor_remote")
+        && ctx.canonical_req.protocol_family
+            == crate::protocol::canonical::ProtocolFamily::BedrockConverse;
     let sap = crate::protocol::sap_aicore::owns_payload(&candidate.payload);
-    let (byte_stream, stream_completion_semantics_handle) = if ctx.canonical_req.endpoint_kind
-        == EndpointKind::Messages
+    let (byte_stream, stream_completion_semantics_handle) = if native_cursor_bedrock {
+        (byte_stream, None)
+    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Messages
         && (crate::protocol::commandcode::owns_payload(&candidate.payload)
             || crate::protocol::sensenova::owns_payload(&candidate.payload))
     {
@@ -67,7 +71,7 @@ pub(in super::super) fn track(
     let stream_completion_semantics_handle =
         native_semantics.or(stream_completion_semantics_handle);
     let (byte_stream, stream_archive_handle) =
-        if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
+        if !native_cursor_bedrock && is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
             let (tapped_stream, archive_handle) = tap_stream_archive_with_error(
                 byte_stream,
                 crate::conversation_archive::CONVERSATION_ARCHIVE_MAX_RESPONSE_BYTES,
@@ -111,10 +115,15 @@ pub(in super::super) fn track(
     let budget_for_cb = ctx.request_budget.clone();
     let latency_key =
         crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
-    let (byte_stream, failure_evidence) = diagnostics::observe(byte_stream);
+    let (byte_stream, failure_evidence) = if native_cursor_bedrock {
+        (byte_stream, Arc::new(parking_lot::Mutex::new(None)))
+    } else {
+        diagnostics::observe(byte_stream)
+    };
     // SSE taps/archive precede encoding; native EOF validation must precede the sole success owner.
     let (byte_stream, stream_usage_handle): (ByteStream, _) = if ctx.canonical_req.protocol_family
         == crate::protocol::canonical::ProtocolFamily::BedrockConverse
+        && !native_cursor_bedrock
     {
         let (stream, usage) =
             crate::protocol::bedrock_converse::encode_native_stream_with_started_at(

@@ -26,6 +26,8 @@ pub(crate) use stored_response_tasks::{StoredResponseAdmission, StoredResponseWa
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) cursor_import: Arc<crate::console::cursor_import::Registry>,
+    pub(crate) cursor_remote: crate::protocol::cursor_remote::runtime::Runtime,
     pub(crate) background_tasks: crate::runtime::background_tasks::BackgroundTasks,
     pub(crate) stored_response_tasks: StoredResponseTasks,
     /// Heartbeat stop is later than internal shutdown: HTTP must finish draining first.
@@ -67,6 +69,8 @@ impl GatewayLifecycleState {
         let started = !self.draining.swap(true, Ordering::SeqCst);
         if started {
             self.stored_response_tasks.close();
+            self.cursor_import.close();
+            self.cursor_remote.close();
             self.accio_db_refresh_stop.request(reason);
             self.freebuff_purchases.close();
             *self.drain_started_at.write() = Some(

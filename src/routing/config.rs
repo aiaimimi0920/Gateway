@@ -43,6 +43,8 @@ mod call_flow;
 mod candidates;
 mod cloudflare_workers_ai;
 pub(crate) mod copilot;
+pub(crate) mod cursor;
+pub(crate) mod cursor_remote;
 mod default_group;
 mod dim_oauth;
 mod document_compilation;

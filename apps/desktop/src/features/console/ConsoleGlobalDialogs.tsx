@@ -170,6 +170,14 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
     webDisabled: editorLocked || draftDirty,
     hasSecretAccess,
     credentialProvider,
+    onCursorSaved: () => { void controller.refresh(); },
+    credentialSecretConfigured: (providerId, credentialId, field) => {
+      const active = controller.routeConfig?.routeConfig;
+      const pi = active?.document.providers.findIndex(p => !!p && typeof p === "object" && (p as Record<string, unknown>).id === providerId) ?? -1;
+      const provider = active?.document.providers[pi] as Record<string, unknown> | undefined;
+      const ci = (Array.isArray(provider?.credentials) ? provider.credentials : []).findIndex(c => c?.id === credentialId);
+      return Boolean(pi >= 0 && ci >= 0 && active?.secrets.some(s => s.configured && s.path === `/providers/${pi}/credentials/${ci}/${field}`));
+    },
     confirmSecretAccess: async () => {
       if (!session.managementToken) throw new Error(t("管理会话不可用，请重新连接。", "Management session unavailable; reconnect."));
       await session.confirmSecretAccess(session.managementToken);

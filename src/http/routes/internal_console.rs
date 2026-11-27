@@ -20,6 +20,8 @@ pub use qwen_catalog::read_qwen_model_catalog;
 mod accio_oauth;
 mod antigravity_oauth;
 mod chatgpt_oauth;
+mod cursor_import;
+pub(crate) use cursor_import::mount as mount_cursor_import;
 mod dim_oauth;
 pub use dim_oauth::{act_dim_oauth, create_dim_oauth, dim_oauth_no_store, get_dim_oauth};
 mod dim_catalog;

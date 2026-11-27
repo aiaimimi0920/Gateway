@@ -12,7 +12,7 @@ use serde_json::Value;
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
 use crate::protocol::sse_parse::{parse_sse_line, SseParseState};
 
-pub(super) fn tap<E: Send + 'static>(
+pub(crate) fn tap<E: Send + 'static>(
     inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
 ) -> (impl Stream<Item = Result<Bytes, E>> + Send, Arc<AtomicBool>) {
     let completed = Arc::new(AtomicBool::new(false));

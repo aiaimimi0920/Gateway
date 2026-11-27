@@ -29,6 +29,7 @@ pub use packing::{pack_bedrock_converse, try_pack_bedrock_converse};
 
 pub use normalization::normalize_converse;
 
+pub(crate) use eventstream::encode_buffered_text;
 pub(crate) use eventstream::encode_failure as encode_native_failure;
 pub(crate) use eventstream::translate_with_started_at as encode_native_stream_with_started_at;
 pub use eventstream::{

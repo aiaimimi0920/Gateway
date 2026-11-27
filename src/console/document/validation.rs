@@ -145,7 +145,9 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
         }
         let websocket_transport = provider_uses_websocket_transport(provider);
         // These pools may defer the target to their explicit accounts.
-        if !(crate::routing::config::copilot::is_provider(provider) && provider.base_url.is_empty())
+        if !((crate::routing::config::copilot::is_provider(provider)
+            || crate::routing::config::cursor_remote::is_provider(provider))
+            && provider.base_url.is_empty())
             && !(matches!(
                 provider.preset.as_deref(),
                 Some("qwen-official-api" | "cloudflare-workers-ai")

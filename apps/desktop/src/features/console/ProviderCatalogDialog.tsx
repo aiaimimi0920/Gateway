@@ -72,6 +72,11 @@ export function ProviderCatalogDialog({ open, existingProviderIds, existingCrede
     const fail = (message: string) => setValidationError(message);
     if (existingProviderIds.some((id) => id.trim() === providerId)) return fail(t(`Provider ID ${providerId} 已存在，请使用其他 ID。`, `Provider ID ${providerId} already exists.`));
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(providerId) || providerId.length > 256) return fail(t("请输入有效的 Provider ID。", "Enter a valid Provider ID."));
+    if (selectedTemplate.id === "cursor-remote-oauth") {
+      onSubmit({ ...draft, providerId, providerLabel: draft.providerLabel.trim() || providerId,
+        baseUrl: "", supportedModels: [], workflow: undefined, secrets: {}, apiKey: undefined, credentialId: undefined });
+      onOpenChange(false); return;
+    }
     if (selectedTemplate.preset === "qwen-official-api") { try { qwenCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
     if (selectedTemplate.id === "vertex-oauth") { try { vertexOAuthCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
     if (selectedTemplate.id === "kiro-oauth") { try { kiroOAuthCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }

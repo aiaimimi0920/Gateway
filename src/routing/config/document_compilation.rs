@@ -10,6 +10,8 @@ pub(super) fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, 
 pub(super) fn compile_yaml_with_fingerprints(
     config: RouteConfigYaml,
 ) -> Result<(RouteConfigInner, HashMap<String, String>), anyhow::Error> {
+    cursor::validate_document(&config)?;
+    cursor_remote::validate_document(&config)?;
     anyhow::ensure!(
         config
             .providers
