@@ -8,6 +8,48 @@ Anthropic Messages 与 legacy Completions 仍明确拒绝；`allProtocolsImpleme
 这不是所有参数兼容、官方独立推理授权、实际底层模型或请求级 Free 扣额的验收结论。
 源码验收、提交推送、新包生成与 4200 切换分别记账，以下历史包不自动代表最终部署版本。
 
+### 最终部署与复验（2026-11-28 01:36–01:41，北京时间）
+
+本阶段**已验支持范围开发完成并部署**，不是全协议／全参数等价兼容。
+产品提交 `0da2d0f1b5873db8462fc2e755dc9d23da5bb7a7` 已推送并独立读回远端；
+从该提交的干净源码快照构建 desktop **devtest** 包：
+`../release/Gateway/gateway-devtest-cursor-closure-20261128-0045`。
+本节是构建后的文档回执，不追写包内来源凭据，也不触发无源码变化的重新构建。
+
+- 选定提交的 Rust Nextest 396/396、同一测试二进制补充路由／Responses／流观察
+  117/117 通过；`cargo fmt --all --check`、提交 diff 空白检查及权威行数门禁通过。
+  行数扫描 6,280 文件，无 501 行以上受管源码。没有以大工作树的其他改动冒充本次提交。
+- 两个 EXE 来自本次 devtest 编译。打包器拒绝快照缓存 Junction 后，仅将本次产物按
+  原构建凭据核验并物化到普通目录，复用锁定生产依赖完成打包；未弱化安全检查或重编。
+  来源指纹为 `812ac766b6b9f9f724803a4d949f23624958ffe237f21aa8b0fd98567264c84c`。
+- `gateway.exe` SHA-256：
+  `0337e96d5098663154daad0626fdac7db853bdcd39bd0ef7d2ef0c4a492a54b9`；
+  `gateway-ui.exe` SHA-256：
+  `516b71f9a44a3ed7c2306f2e41d8c77303697202887a4e6da4f4309454336140`。
+  包完整性、隔离 SQLite 重启／Key／余额检查、桌面父子启动及 drain 均通过；
+  桌面 smoke 首轮的 PowerShell 空集合计数错误已修正，未将首轮失败记为通过。
+- 用户已允许忙时切换。旧后端优雅退出 0，私有停机备份 4,312 文件逐文件哈希及
+  SQLite `quick_check` 通过。新版 backend PID 2392、desktop PID 54264；
+  4200 健康／就绪／管理页面均 200，独立 LAN relay PID 11216 未动。
+  沿用 `.ng-devtest-4300`、路由修订 `r599-e8235e514f81`、配置与凭据摘要。
+  在途用量可结算变化，未宣称切换前后整个余额／Key 数据库逐字段相等。
+- 固定 `codex-cli 0.155.1 → 4200 → cursor-remote` 完成三次 `exec_command`
+  读→改→测与最终回复；四阶段均为指定账号、HTTP 200、attempt 1、delivery unknown=false。
+  源码精确匹配、测试未改、独立可信副本测试与只读 SQLite 对账通过。
+- 同一新版的 Bedrock EventStream、DashScope SSE、Gemini JSON、Cohere SSE 各一次
+  文本抽查通过。前两者原生 usage 分别为 11295/103/11398、11278/91/11369
+  （input/output/total），与指定账号审计精确一致；后两者不伪造缺失用量。
+  共五个临时 Key 均已撤销，无重试／fallback，配置与凭据前后不变。
+
+部署及独立编码对账位于
+`target/deploy-evidence/gateway-devtest-cursor-closure-20261128-0045/`。
+原始业务回执位于 `target/cursor-closeout/source/target/provider-evidence/`：
+`cursor-coding-6d483a3b-f6d2-4530-9e4c-abd853fac0eb.json`、
+`cursor-protocols-d288d96d-07ec-4cd1-b4b1-53af9bb692ed.json`；
+后者同名前缀 `-reconciled.safe.json` 独立对账通过。
+未重跑完整历史协议矩阵、未做人为原生业务点击或正式 Release 安全验收；
+输出 token 上限、Anthropic／legacy Completions、实际底层模型及 Free 归属边界不变。
+
 ## 能力与证据（2026-11-27）
 
 | 验收对象 | 结论 | 证据与限制 |
