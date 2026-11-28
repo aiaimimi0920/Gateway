@@ -26,6 +26,7 @@ pub(crate) use stored_response_tasks::{StoredResponseAdmission, StoredResponseWa
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) account_concurrency: crate::account_concurrency::AccountConcurrency,
     pub(crate) cursor_import: Arc<crate::console::cursor_import::Registry>,
     pub(crate) cursor_remote: crate::protocol::cursor_remote::runtime::Runtime,
     pub(crate) background_tasks: crate::runtime::background_tasks::BackgroundTasks,

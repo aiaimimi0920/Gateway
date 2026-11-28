@@ -137,6 +137,7 @@ use substitution::subst_provider;
 /// A compiled provider ready for routing — all preset merging done at load time.
 #[derive(Debug, Clone)]
 pub struct CompiledProvider {
+    pub max_concurrent_requests: Option<u16>,
     pub explicit_credentials_only: bool,
     /// Configuration-bound, pre-hashed site policy; no JSON/hash allocation on the send path.
     pub(crate) site_health: Option<crate::site_health::CompiledSiteHealth>,
@@ -182,6 +183,7 @@ pub struct CompiledCredential {
     pub payload: ProviderAccountPayload,
     /// Whether this credential participates in runtime routing. Disabled
     /// credentials remain compiled so the inventory and management console can
+    pub max_concurrent_requests: Option<u16>,
     /// display and re-enable them without losing their identity.
     pub enabled: bool,
     /// Models this credential can serve. Empty = any model the provider supports.

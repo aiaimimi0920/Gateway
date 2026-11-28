@@ -12,6 +12,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
     let document = RouteConfigYaml {
         providers: vec![
             ProviderConfigYaml {
+                max_concurrent_requests: None,
                 request_wait: None,
                 call_flow: None,
                 auth_mode: None,
@@ -77,6 +78,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![ProviderCredentialYaml {
+                    max_concurrent_requests: None,
                     copilot_github_token: None,
                     auth_mode: None,
                     request_client_profile: None,
@@ -123,6 +125,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 }],
             },
             ProviderConfigYaml {
+                max_concurrent_requests: None,
                 request_wait: None,
                 call_flow: None,
                 auth_mode: None,
@@ -225,6 +228,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
 fn account_groups_reject_unknown_account_members() {
     let document = RouteConfigYaml {
         providers: vec![ProviderConfigYaml {
+            max_concurrent_requests: None,
             request_wait: None,
             call_flow: None,
             auth_mode: None,
@@ -290,6 +294,7 @@ fn account_groups_reject_unknown_account_members() {
             credential_automation_driver_id: None,
             credential_identity_categories: vec![],
             credentials: vec![ProviderCredentialYaml {
+                max_concurrent_requests: None,
                 copilot_github_token: None,
                 auth_mode: None,
                 request_client_profile: None,

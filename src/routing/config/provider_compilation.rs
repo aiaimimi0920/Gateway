@@ -15,6 +15,17 @@ use super::*;
 pub(super) fn compile_provider(
     mut cfg: ProviderConfigYaml,
 ) -> Result<CompiledProvider, anyhow::Error> {
+    let valid_limit = |limit: Option<u16>| limit.is_none_or(|value| (1..=1000).contains(&value));
+    anyhow::ensure!(
+        valid_limit(cfg.max_concurrent_requests),
+        "max_concurrent_requests must be between 1 and 1000"
+    );
+    anyhow::ensure!(
+        cfg.credentials
+            .iter()
+            .all(|credential| valid_limit(credential.max_concurrent_requests)),
+        "credential max_concurrent_requests must be between 1 and 1000"
+    );
     if cursor_remote::is_provider(&cfg) {
         // Inventory retains the original document. Generic execution/probe payloads never get Cursor tokens.
         for credential in &mut cfg.credentials {
@@ -244,6 +255,7 @@ pub(super) fn compile_provider(
                 Ok(CompiledCredential {
                     dim_catalog: cred.dim_catalog.clone(),
                     discovery_required: cred.discovery_job.is_some() && cred.discovery.is_none(),
+                    max_concurrent_requests: cred.max_concurrent_requests,
                     discovery: cred.discovery.clone(),
                     id: cred_id,
                     payload: cred_payload,
@@ -289,6 +301,7 @@ pub(super) fn compile_provider(
         payload,
         protocol_family: canonicalize_protocol_family_key(&protocol_family),
         protocol_profile,
+        max_concurrent_requests: cfg.max_concurrent_requests,
         supported_models,
         model_map: cfg.model_map,
         model_map_targets: cfg.model_map_targets,

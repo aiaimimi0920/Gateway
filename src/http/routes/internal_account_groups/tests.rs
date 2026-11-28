@@ -271,6 +271,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
     let route_config = RouteConfigStore::from_document(RouteConfigYaml {
         providers: vec![
             crate::routing::config::ProviderConfigYaml {
+                max_concurrent_requests: None,
                 request_wait: None,
                 call_flow: None,
                 auth_mode: None,
@@ -338,6 +339,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credentials: vec![],
             },
             crate::routing::config::ProviderConfigYaml {
+                max_concurrent_requests: None,
                 request_wait: None,
                 call_flow: None,
                 auth_mode: None,

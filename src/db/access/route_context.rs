@@ -154,6 +154,9 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     RouteCandidate {
                         provider_account_id: provider_row.id.clone(),
                         provider_credential_id: Some(credential.id.clone()),
+                        max_concurrent_requests: crate::account_concurrency::limit_from_payload(
+                            &credential.payload,
+                        )?,
                         label: format!("{} / {}", provider_row.label, credential.label),
                         payload,
                         protocol_family,
@@ -235,6 +238,9 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                 RouteCandidate {
                     provider_account_id: provider_row.id.clone(),
                     provider_credential_id: None,
+                    max_concurrent_requests: crate::account_concurrency::limit_from_payload(
+                        &payload_view.payload,
+                    )?,
                     label: provider_row.label.clone(),
                     payload,
                     protocol_family,

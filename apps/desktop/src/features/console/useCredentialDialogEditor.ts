@@ -35,6 +35,7 @@ import { dimCatalogFields } from "./dimModelCatalog";
 import { lobsteraiCatalogFields } from "./lobsteraiModelCatalog";
 import { commandcodeZdrFields } from "./commandcodeZdr";
 import { filterVercelAccountModels, registerVercelModels, VERCEL_CREDIT_AUTH_MODE, VERCEL_PRESET } from "./vercelFreeCatalog";
+import { parseAccountConcurrencyLimit } from "./accountConcurrencyLimit";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -184,7 +185,10 @@ export function useCredentialDialogEditor({
       if (selection) selection = { manual: filterModels(selection.manual), fetched: filterModels(selection.fetched) };
       const supportedModels = selection ? selectedModels(selection) : filterModels(parseSupportedModelsText(value.supportedModelsText));
       let businessFields;
-      try { businessFields = { ...freebuffBusinessFields(provider, value), ...dimCatalogFields(provider, value), ...lobsteraiCatalogFields(provider, value) }; }
+      try { businessFields = {
+        ...freebuffBusinessFields(provider, value), ...dimCatalogFields(provider, value), ...lobsteraiCatalogFields(provider, value),
+        max_concurrent_requests: parseAccountConcurrencyLimit(value.maxConcurrentRequestsText),
+      }; }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       const discoverLater = !selection && !value.discovery && value.apiKeyOperation === "replace" &&
         provider && !isQwenProvider(provider) && !isBedrockProvider(provider) && !catalogProviderKind(provider) && supportsAccountDiscovery(provider);

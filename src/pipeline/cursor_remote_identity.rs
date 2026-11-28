@@ -219,6 +219,7 @@ impl Identity {
         Ok(RouteCandidate {
             provider_account_id: p.id.clone(),
             provider_credential_id: Some(c.id.clone()),
+            max_concurrent_requests: c.max_concurrent_requests,
             label: p.label.clone(),
             payload: c.payload.clone(),
             protocol_family: cursor_remote::AUTH_MODE.into(),

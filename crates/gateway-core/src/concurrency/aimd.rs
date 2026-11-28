@@ -285,6 +285,9 @@ pub struct ConcurrencyPermit {
     controller: Arc<AimdController>,
     // Option so we can take the permit on drop to control release order.
     _permit: Option<OwnedSemaphorePermit>,
+    // The permit is shared by stream owners. Wrapping each Send-only guard in a
+    // Mutex preserves Sync automatically without unsafe impls; empty Vec does not allocate.
+    attached_guards: Vec<Mutex<Box<dyn Send>>>,
 }
 
 impl ConcurrencyPermit {
@@ -292,12 +295,28 @@ impl ConcurrencyPermit {
         Self {
             controller,
             _permit: Some(permit),
+            attached_guards: Vec::new(),
         }
+    }
+
+    /// Attach another RAII admission guard to the same response lifetime.
+    pub fn with_guard(self, guard: impl Send + 'static) -> Self {
+        self.with_optional_guard(Some(guard))
+    }
+
+    pub fn with_optional_guard(mut self, guard: Option<impl Send + 'static>) -> Self {
+        if let Some(guard) = guard {
+            self.attached_guards.push(Mutex::new(Box::new(guard)));
+        }
+        self
     }
 }
 
 impl Drop for ConcurrencyPermit {
     fn drop(&mut self) {
+        while let Some(guard) = self.attached_guards.pop() {
+            drop(guard);
+        }
         // Release the semaphore permit first so the slot becomes available.
         drop(self._permit.take());
         // Then notify the controller (may absorb the permit into withheld pool
@@ -307,9 +326,10 @@ impl Drop for ConcurrencyPermit {
     }
 }
 
-// Safety: AimdController uses only thread-safe primitives.
-unsafe impl Send for ConcurrencyPermit {}
-unsafe impl Sync for ConcurrencyPermit {}
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ConcurrencyPermit>();
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -462,6 +482,43 @@ mod tests {
         assert_eq!(ctrl.snapshot().active_count, 2);
         drop(p1);
         drop(p2);
+        assert_eq!(ctrl.snapshot().active_count, 0);
+    }
+
+    #[test]
+    fn with_guard_drops_send_only_guards_once_in_lifo_order() {
+        use std::cell::Cell;
+
+        struct SendOnlyGuard {
+            id: usize,
+            _not_sync: Cell<()>,
+            log: Arc<Mutex<Vec<usize>>>,
+        }
+
+        impl Drop for SendOnlyGuard {
+            fn drop(&mut self) {
+                self.log.lock().push(self.id);
+            }
+        }
+
+        let ctrl = make_controller(1, 1, 4, 5);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let permit = ctrl
+            .try_acquire()
+            .expect("permit")
+            .with_guard(SendOnlyGuard {
+                id: 1,
+                _not_sync: Cell::new(()),
+                log: Arc::clone(&log),
+            })
+            .with_guard(SendOnlyGuard {
+                id: 2,
+                _not_sync: Cell::new(()),
+                log: Arc::clone(&log),
+            });
+        assert!(log.lock().is_empty());
+        drop(permit);
+        assert_eq!(*log.lock(), vec![2, 1]);
         assert_eq!(ctrl.snapshot().active_count, 0);
     }
 }

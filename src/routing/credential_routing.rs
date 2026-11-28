@@ -141,9 +141,26 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
     let resolved_execution_mode =
         payload.resolve_execution_mode(crate::protocol::canonical::EndpointKind::ChatCompletions);
 
+    let max_concurrent_requests = match cred
+        .account_payload
+        .as_ref()
+        .map(crate::account_concurrency::limit_from_payload)
+        .transpose()
+    {
+        Ok(limit) => limit.flatten(),
+        Err(_) => {
+            tracing::warn!(
+                credential_id = %cred.id,
+                "skip invalid credential max_concurrent_requests"
+            );
+            return None;
+        }
+    };
+
     Some(RouteCandidate {
         provider_account_id: format!("cred:{}", cred.id),
         provider_credential_id: None,
+        max_concurrent_requests,
         label: format!("credential-{}", cred.id),
         payload,
         protocol_family,

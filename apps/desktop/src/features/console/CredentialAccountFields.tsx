@@ -30,7 +30,7 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
       <Select compact value={value.providerId} disabled={locked || mode === "edit"} onChange={(event) => {
         const providerId = event.currentTarget.value;
         setValue((current) => ({
-          ...current, providerId, accountName: "", baseUrl: "", qwenEndpoint: undefined,
+          ...current, providerId, accountName: "", maxConcurrentRequestsText: "", baseUrl: "", qwenEndpoint: undefined,
           apiKeyValue: "", webSessionMaterial: undefined, sessionMaterial: undefined, bedrockMaterial: undefined,
           chatgptAccountId: "", chatgptGroup: undefined, apiKeyOperation: "replace", discovery: undefined,
           commandcodeZdr: undefined, cloudflareAccountId: undefined, vercelMonthlyCredit: undefined,
@@ -85,6 +85,14 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
         <Input compact value={value.credentialId} disabled={locked || mode === "edit"} onChange={(event) => {
           const credentialId = event.currentTarget.value; setValue((current) => ({ ...current, credentialId }));
         }} />
+      </Field>
+      <Field label={t("上游账号并发上限（留空不限制）", "Upstream account concurrency limit (blank: unlimited)")}>
+        <Input compact type="number" min={1} max={1000} step={1}
+          value={value.maxConcurrentRequestsText ?? ""}
+          onChange={(event) => {
+            const maxConcurrentRequestsText = event.currentTarget.value;
+            setValue((current) => ({ ...current, maxConcurrentRequestsText }));
+          }} />
       </Field>
       {qwen && <QwenCredentialEndpoint provider={qwen} value={value} onChange={setValue} disabled={locked || busy} t={t} />}
       {cloudflare && <Field label="Cloudflare Account ID">

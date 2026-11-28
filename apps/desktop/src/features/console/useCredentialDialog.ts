@@ -15,6 +15,7 @@ import { normalizeLumaAgentsDraft } from "./lumaAgents";
 import { normalizeLumaInferenceCredential } from "./lumaInferenceCredential";
 import { normalizeSapCredential } from "./sapAiCore";
 import { normalizeCloudflareCredential } from "./cloudflareWorkersAi";
+import { parseAccountConcurrencyLimit } from "./accountConcurrencyLimit";
 
 function emptyValue(providerId = ""): CredentialDialogValue {
   return {
@@ -138,6 +139,8 @@ export function useCredentialDialog({
     if (authentication || (managedWeb && mode === "add")) return;
     if (reauthenticationOnly?.(value.providerId) && (mode === "add" || value.apiKeyOperation !== "keep")) return;
     if (locked || busy) return;
+    try { parseAccountConcurrencyLimit(value.maxConcurrentRequestsText); }
+    catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
     let normalized = value;
     try { normalized = cloudflare ? normalizeCloudflareCredential(value, mode === "edit" ? initialValue : null)
       : normalizeQwenCredentialDraft(qwen, value, mode === "edit" ? initialValue : null); }

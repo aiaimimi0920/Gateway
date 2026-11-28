@@ -130,6 +130,9 @@ pub(crate) async fn read_candidate(
     let candidate = RouteCandidate {
         provider_account_id: provider.id,
         provider_credential_id: Some(credential.id),
+        max_concurrent_requests: crate::account_concurrency::limit_from_payload(
+            &credential.payload,
+        )?,
         label: format!("{} / {}", provider.label, credential.label),
         payload: prepared.payload,
         protocol_family: prepared.protocol_family,

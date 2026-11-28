@@ -72,6 +72,16 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
 
     for (provider_index, provider) in document.providers.iter().enumerate() {
         let provider_path = format!("/providers/{provider_index}");
+        if provider
+            .max_concurrent_requests
+            .is_some_and(|limit| !(1..=1000).contains(&limit))
+        {
+            diagnostics.push_error(
+                "account_concurrency_limit_invalid",
+                format!("{provider_path}/max_concurrent_requests"),
+                "account concurrency limit must be between 1 and 1000",
+            );
+        }
         let normalized_provider_id = provider.id.trim();
         if let Err(message) =
             crate::credential_pool_automation::capacity::validate_pool_capacity(provider)
@@ -188,6 +198,16 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
 
         for (credential_index, credential) in provider.credentials.iter().enumerate() {
             let credential_path = format!("{provider_path}/credentials/{credential_index}");
+            if credential
+                .max_concurrent_requests
+                .is_some_and(|limit| !(1..=1000).contains(&limit))
+            {
+                diagnostics.push_error(
+                    "account_concurrency_limit_invalid",
+                    format!("{credential_path}/max_concurrent_requests"),
+                    "account concurrency limit must be between 1 and 1000",
+                );
+            }
             if let Some(raw_id) = credential.id.as_deref() {
                 let normalized_id = raw_id.trim();
                 if normalized_id.is_empty() {

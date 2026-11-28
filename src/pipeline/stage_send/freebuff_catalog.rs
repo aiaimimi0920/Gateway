@@ -62,6 +62,16 @@ pub(super) async fn send(
     let controller = state
         .concurrency_registry
         .get_or_create(&candidate.provider_account_id);
+    let account_permit = recovery_wait::cancellable(
+        ctx.caller_cancel.clone(),
+        ctx.request_budget.clone(),
+        state,
+        state
+            .lifecycle
+            .account_concurrency
+            .acquire(state, candidate),
+    )
+    .await??;
     let permit = recovery_wait::cancellable(
         ctx.caller_cancel.clone(),
         ctx.request_budget.clone(),
@@ -69,6 +79,10 @@ pub(super) async fn send(
         controller.acquire(),
     )
     .await?;
+    let permit = match account_permit {
+        Some(account_permit) => permit.with_guard(account_permit),
+        None => permit,
+    };
     gate.admit().await?;
     let started = Instant::now();
     if ctx.canonical_req.stream {

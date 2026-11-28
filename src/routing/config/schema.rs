@@ -156,6 +156,9 @@ pub enum RouteAccountGroupSelectionError {
 /// - **Multi-endpoint**: different base_urls with same or different keys (e.g. 3 AI Hub mirrors)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
+    /// Optional hard in-flight ceiling for this exact upstream account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrent_requests: Option<u16>,
     /// SDK-only identity; never projected into a generic HTTP payload.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub copilot_github_token: Option<String>,
@@ -292,6 +295,9 @@ pub struct ProviderCredentialYaml {
 /// Per-provider configuration block in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigYaml {
+    /// Optional ceiling for the implicit provider-default account only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrent_requests: Option<u16>,
     /// Trusted recovery waiting policy; absent keeps template-specific defaults.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_wait: Option<crate::request_wait::RequestWaitPolicy>,

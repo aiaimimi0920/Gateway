@@ -107,6 +107,20 @@ pub(super) fn provider_to_candidate(
         dim_family.unwrap_or_else(|| discovery.map(|d| d.family()).unwrap_or(&p.protocol_family));
 
     Some(RouteCandidate {
+        max_concurrent_requests: selected_payload
+            .credential_id
+            .as_deref()
+            .and_then(|id| {
+                p.credential_pool
+                    .iter()
+                    .find(|credential| credential.id == id)
+            })
+            .and_then(|credential| credential.max_concurrent_requests)
+            .or_else(|| {
+                p.uses_provider_default_account()
+                    .then_some(p.max_concurrent_requests)
+                    .flatten()
+            }),
         provider_account_id: p.id.clone(),
         provider_credential_id: None,
         label: p.label.clone(),

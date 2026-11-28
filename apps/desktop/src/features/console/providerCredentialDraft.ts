@@ -125,6 +125,8 @@ export function credentialDialogValueFromDocument(
     lobsteraiCatalog,
     discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
+    maxConcurrentRequestsText: typeof credential.max_concurrent_requests === "number"
+      ? String(credential.max_concurrent_requests) : "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
     baseUrl: optionalString(credential, "base_url") ?? (provider.preset === "cloudflare-workers-ai" ? optionalString(provider, "base_url") ?? "" : ""),
     supportedModelsText: [...new Set(filterModels(effective))].join("\n"),
@@ -150,6 +152,7 @@ export function duplicateCredentialDialogValue(
     bedrockMaterial: copiedValue?.bedrockMaterial,
     chatgptGroup: copiedValue?.chatgptGroup,
     accountName: "",
+    maxConcurrentRequestsText: "",
     enabled: account.enabled,
     codexBasispointsEnabled: copiedValue?.codexBasispointsEnabled,
     commandcodeZdr: copiedValue?.commandcodeZdr,

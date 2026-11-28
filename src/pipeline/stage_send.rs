@@ -392,6 +392,16 @@ async fn run_candidates(
         let controller = state
             .concurrency_registry
             .get_or_create(&candidate.provider_account_id);
+        let account_permit = recovery_wait::cancellable(
+            ctx.caller_cancel.clone(),
+            ctx.request_budget.clone(),
+            state,
+            state
+                .lifecycle
+                .account_concurrency
+                .acquire(state, candidate),
+        )
+        .await??;
         let permit = recovery_wait::cancellable(
             ctx.caller_cancel.clone(),
             ctx.request_budget.clone(),
@@ -399,6 +409,7 @@ async fn run_candidates(
             controller.acquire(),
         )
         .await?;
+        let permit = permit.with_optional_guard(account_permit);
         if let Err(error) = provider_attempt_gate.admit().await {
             drop(permit);
             admission::record_rejection(ctx, candidate, &error);

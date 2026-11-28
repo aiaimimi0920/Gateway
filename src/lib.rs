@@ -9,6 +9,7 @@ extern crate self as neuro_gateway;
 mod canvas_http_ingress_contract;
 
 pub mod access_balance;
+mod account_concurrency;
 pub use gateway_core::access_control;
 pub mod access_key_groups;
 pub mod access_store;

@@ -8,6 +8,7 @@ fn candidate(id: &str, adapter: &str, flow: Option<Value>) -> RouteCandidate {
     RouteCandidate {
         provider_account_id: id.into(),
         provider_credential_id: None,
+        max_concurrent_requests: None,
         label: id.into(),
         payload: serde_json::from_value(
             json!({"adapter":adapter,"base_url":"https://fixture.test",

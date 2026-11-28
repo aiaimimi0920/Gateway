@@ -333,6 +333,8 @@ pub struct ProviderAccountPayload {
 /// by the routing layer.
 #[derive(Debug, Clone)]
 pub struct RouteCandidate {
+    /// Hard in-flight ceiling for this account; absent preserves existing AIMD behavior.
+    pub max_concurrent_requests: Option<u16>,
     /// Unique identifier of the provider account in the platform.
     pub provider_account_id: String,
 
@@ -473,6 +475,7 @@ mod tests {
         RouteCandidate {
             provider_account_id: id.to_string(),
             provider_credential_id: None,
+            max_concurrent_requests: None,
             label: format!("provider-{}", id),
             payload: make_payload("openai_compatible"),
             protocol_family: "openai".to_string(),

@@ -166,6 +166,9 @@ pub(super) async fn build_route_candidates_for_provider(
             candidates.push(RouteCandidate {
                 provider_account_id: provider_row.id.clone(),
                 provider_credential_id: Some(credential.id.clone()),
+                max_concurrent_requests: crate::account_concurrency::limit_from_payload(
+                    &credential.payload,
+                )?,
                 label: format!("{} / {}", provider_row.label, credential.label),
                 payload: payload.clone(),
                 protocol_family,
@@ -213,6 +216,7 @@ pub(super) async fn build_route_candidates_for_provider(
     candidates.push(RouteCandidate {
         provider_account_id: provider_row.id.clone(),
         provider_credential_id: None,
+        max_concurrent_requests: crate::account_concurrency::limit_from_payload(&account_payload)?,
         label: provider_row.label.clone(),
         payload: payload.clone(),
         protocol_family,

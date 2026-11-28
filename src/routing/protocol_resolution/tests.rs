@@ -58,6 +58,7 @@ fn make_candidate(protocol_family: &str) -> RouteCandidate {
     RouteCandidate {
         provider_account_id: "provider-1".to_string(),
         provider_credential_id: Some("cred-1".to_string()),
+        max_concurrent_requests: None,
         label: "provider-1".to_string(),
         payload: ProviderAccountPayload {
             call_flow: None,

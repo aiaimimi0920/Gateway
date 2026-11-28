@@ -38,6 +38,21 @@ it("preserves disabled metadata and uses the externally associated save action",
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ enabled: false, apiKeyOperation: "keep", supportedModelsText: "old-model" }));
 });
 
+it("accepts a per-account ceiling of 3 and rejects zero without submitting", async () => {
+  const user = userEvent.setup(); const submit = vi.fn();
+  render(<Tree onSubmit={submit} />);
+  const input = screen.getByLabelText("上游账号并发上限（留空不限制）");
+  await user.type(input, "3");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ maxConcurrentRequestsText: "3" }));
+  submit.mockClear();
+  await user.clear(input);
+  await user.type(input, "0");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  expect(input).toBeInvalid();
+  expect(submit).not.toHaveBeenCalled();
+});
+
 it("allows cancellation while locked, returns focus, and clears the editing session", async () => {
   const user = userEvent.setup(); const submit = vi.fn();
   function Harness() {

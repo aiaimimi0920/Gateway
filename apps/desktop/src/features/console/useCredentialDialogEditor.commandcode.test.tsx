@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { CredentialDialogValue } from "./CredentialDialog";
 import { useCredentialDialogEditor } from "./useCredentialDialogEditor";
-import { buildCredentialSecretPatches, type CredentialSecretEdit } from "./credentialDocument";
+import { buildCredentialSecretPatches, updateExplicitCredential, type CredentialSecretEdit } from "./credentialDocument";
 import { routeDocument } from "./credentialDocumentTestFixtures";
 import { credentialDialogValueFromDocument } from "./providerCredentialDraft";
 
@@ -64,4 +64,33 @@ it("saves and reopens account ZDR without replacing the existing Key", () => {
   expect(h.patches()).toEqual([{ path: "/providers/0/credentials/0/api_key", operation: "replace", value: "cpk-synthetic" }]);
   expect(h.error).toHaveBeenLastCalledWith(null);
   h.unmount();
+});
+
+it("saves and reads back the per-account ceiling and can clear it", () => {
+  const h = setup();
+  act(() => h.result.current.editor.applyCredentialDialogValue({ ...draft, maxConcurrentRequestsText: "3" }));
+  expect(h.error).toHaveBeenLastCalledWith(null);
+  expect(h.result.current.document.providers[0]).toMatchObject({ credentials: [{ id: "stable", max_concurrent_requests: 3 }] });
+  expect(credentialDialogValueFromDocument(h.result.current.document, "commandcode", "stable")?.maxConcurrentRequestsText).toBe("3");
+  act(() => h.result.current.setMode("edit"));
+  act(() => h.result.current.editor.applyCredentialDialogValue({
+    ...draft, maxConcurrentRequestsText: "", apiKeyOperation: "keep", apiKeyValue: ""
+  }));
+  expect(JSON.stringify(h.result.current.document)).not.toContain("max_concurrent_requests");
+  h.unmount();
+});
+
+it("edits one zzz-api account limit without overwriting another manual value", () => {
+  const active = routeDocument([{ id: "zzz-api", base_url: "https://fixture.invalid",
+    credentials: [{ id: "account-a", max_concurrent_requests: 5 }, { id: "account-b", max_concurrent_requests: 7 }] }]);
+  const next = updateExplicitCredential(active, { providerId: "zzz-api", credentialId: "account-a" },
+    { max_concurrent_requests: 3 });
+  expect(next.providers[0]).toMatchObject({ credentials: [
+    { id: "account-a", max_concurrent_requests: 3 },
+    { id: "account-b", max_concurrent_requests: 7 }
+  ] });
+  expect(active.providers[0]).toMatchObject({ credentials: [
+    { id: "account-a", max_concurrent_requests: 5 },
+    { id: "account-b", max_concurrent_requests: 7 }
+  ] });
 });

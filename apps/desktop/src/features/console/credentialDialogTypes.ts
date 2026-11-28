@@ -33,6 +33,7 @@ export type CredentialDialogValue = {
   providerId: string;
   credentialId: string;
   accountName: string;
+  maxConcurrentRequestsText?: string;
   enabled: boolean;
   baseUrl: string;
   cloudflareAccountId?: string;
