@@ -415,6 +415,7 @@ mod tests {
             resolved_execution_mode: ProviderExecutionMode::DirectHttp,
             priority,
             weight,
+            max_concurrent_requests: None,
             failure_count: 0,
             cooldown_until: None,
             routing_score: None,
