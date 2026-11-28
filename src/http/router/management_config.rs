@@ -237,6 +237,10 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         post(internal_console::read_river_model_catalog),
     )
     .route(
+        "/v1/internal/gateway/console/zenmux-model-catalog",
+        post(internal_console::read_zenmux_model_catalog),
+    )
+    .route(
         "/v1/internal/gateway/console/agnes-model-catalog",
         post(internal_console::read_agnes_model_catalog),
     )

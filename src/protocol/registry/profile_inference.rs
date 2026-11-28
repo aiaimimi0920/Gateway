@@ -68,6 +68,7 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
         "cohere" => Some("cohere"),
         "groq" => Some("groq"),
         "river" | "river_api" => Some("river"),
+        "zenmux" => Some("zenmux"),
         "agnes_api" => Some("agnes_api"),
         "lumalabs_inference" => Some("lumalabs_inference"),
         "sensenova_token_plan" => Some("sensenova_token_plan"),
@@ -119,6 +120,11 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
 }
 
 fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> {
+    if adapter.trim() == "openai_compatible"
+        && base_url.trim_end_matches('/') == crate::protocol::zenmux::BASE
+    {
+        return Some("zenmux");
+    }
     if adapter.trim() == "openai_compatible"
         && crate::protocol::cloudflare_workers_ai::Endpoint::parse(base_url).is_some()
     {

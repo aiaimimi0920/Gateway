@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "zenmux-official-api",
+  "identity": {
+    "serviceProviderKey": "zenmux", "serviceProviderLabel": "ZenMux",
+    "providerSurfaceKey": "zenmux-api", "providerSurfaceLabel": "ZenMux API",
+    "protocolProfile": "zenmux", "implementationLine": "aggregator_api", "adapter": "openai_compatible",
+    "sourceKind": "aggregator_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/zenmux.routes.sample.json",
+    "fieldsDocPath": "docs/providers/zenmux.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/zenmux.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "zenmux-official-api-verify", "focusedCargoFilters": ["zenmux"],
+    "fixtureSuiteId": "zenmux_fixture", "liveSuiteId": "zenmux_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-zenmux-official-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "zenmux-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/zenmux.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

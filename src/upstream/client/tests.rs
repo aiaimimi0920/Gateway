@@ -5,6 +5,9 @@ pub(crate) mod cloudflare_wire_tests;
 #[cfg(feature = "line-river-official-api")]
 #[path = "river_wire_tests.rs"]
 mod river_wire_tests;
+#[cfg(feature = "line-zenmux-official-api")]
+#[path = "zenmux_wire_tests.rs"]
+mod zenmux_wire_tests;
 use crate::protocol::canonical::{CanonicalMessage, ContentPart, MessageRole, ProtocolFamily};
 use serde_json::json;
 use std::collections::HashMap;

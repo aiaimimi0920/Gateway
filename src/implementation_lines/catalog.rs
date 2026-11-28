@@ -100,6 +100,7 @@ pub enum RefactoredImplementationLine {
     CohereChatOfficialModelApi,
     GroqOpenAiOfficialVendorApi,
     RiverOfficialApi,
+    ZenMuxOfficialApi,
     AgnesOfficialApi,
     LumaLabsInferenceOfficialApi,
     MiniMaxMPlan,
@@ -162,6 +163,7 @@ impl RefactoredImplementationLine {
             Self::CohereChatOfficialModelApi => "cohere",
             Self::GroqOpenAiOfficialVendorApi => "groq",
             Self::RiverOfficialApi => "river",
+            Self::ZenMuxOfficialApi => "zenmux",
             Self::AgnesOfficialApi => "agnes_api",
             Self::LumaLabsInferenceOfficialApi => "lumalabs_inference",
             Self::MiniMaxMPlan => "minimax_m_plan",
@@ -228,6 +230,7 @@ impl RefactoredImplementationLine {
             Self::CohereChatOfficialModelApi => LINE_COHERE_CHAT_OFFICIAL_MODEL_API_FEATURE,
             Self::GroqOpenAiOfficialVendorApi => LINE_GROQ_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
             Self::RiverOfficialApi => LINE_RIVER_OFFICIAL_API_FEATURE,
+            Self::ZenMuxOfficialApi => "line-zenmux-official-api",
             Self::AgnesOfficialApi => LINE_AGNES_OFFICIAL_API_FEATURE,
             Self::LumaLabsInferenceOfficialApi => LINE_LUMALABS_INFERENCE_OFFICIAL_API_FEATURE,
             Self::MiniMaxMPlan => LINE_MINIMAX_M_PLAN_FEATURE,
@@ -312,6 +315,7 @@ impl RefactoredImplementationLine {
                 cfg!(feature = "line-groq-openai-official-vendor-api")
             }
             Self::RiverOfficialApi => cfg!(feature = "line-river-official-api"),
+            Self::ZenMuxOfficialApi => cfg!(feature = "line-zenmux-official-api"),
             Self::AgnesOfficialApi => cfg!(feature = "line-agnes-official-api"),
             Self::LumaLabsInferenceOfficialApi => {
                 cfg!(feature = "line-lumalabs-inference-official-api")

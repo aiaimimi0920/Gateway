@@ -96,6 +96,7 @@ pub(super) fn compile_provider(
         cloudflare_workers_ai::validate_final(&cfg, &payload)?;
     }
     crate::protocol::agnes::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::zenmux::validate(cfg.preset.as_deref(), &payload)?;
     crate::protocol::luma_inference::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::sensenova::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::commandcode::validate(&payload, payload.canonical_adapter())?;
@@ -211,6 +212,7 @@ pub(super) fn compile_provider(
                 cloudflare_workers_ai::validate_account(&cfg, cred, &cred_payload)?;
                 crate::protocol::vercel_free::validate(&cfg, &cred_payload)?;
                 crate::protocol::agnes::validate(&cred_payload, cred_payload.canonical_adapter())?;
+                crate::protocol::zenmux::validate(cfg.preset.as_deref(), &cred_payload)?;
                 crate::protocol::luma_inference::validate(
                     &cred_payload,
                     cred_payload.canonical_adapter(),

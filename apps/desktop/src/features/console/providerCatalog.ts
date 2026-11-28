@@ -15,6 +15,7 @@ import { validateLumaAgentsProvider } from "./lumaAgents";
 import { LUMA_CATALOG_TEMPLATES, lumaMcpCatalogProvider } from "./lumaMcpCatalog";
 import { KIRO_OAUTH_TEMPLATE, writeKiroOAuthCatalog } from "./kiroOAuthCatalog";
 import { RIVER_TEMPLATE } from "./riverCatalog";
+import { zenmux } from "./zenmuxCatalog";
 import { AGNES_TEMPLATE } from "./agnesCatalog";
 import { MINIMAX_TEMPLATES } from "./minimaxCatalog";
 import { SENSENOVA_TEMPLATE } from "./sensenovaCatalog";
@@ -349,6 +350,7 @@ const STANDARD_CATALOG_TEMPLATES = [
   KILO_FREE_TEMPLATE,
   VERCEL_FREE_TEMPLATE,
   RIVER_TEMPLATE,
+  zenmux.template,
   AGNES_TEMPLATE,
   ...MINIMAX_TEMPLATES,
   SENSENOVA_TEMPLATE,
@@ -393,6 +395,9 @@ export function providerDefinitionFromCatalogDraft(
   draft: ProviderCatalogDraft,
 ): Record<string, unknown> {
   if (template.id === CURSOR_TEMPLATE.id) return cursorProvider(draft);
+  if (template.id === zenmux.template.id && !zenmux.isApprovedBaseUrl(draft.baseUrl)) {
+    throw new Error("ZenMux API Key 仅支持官方 API 地址。");
+  }
   if (template.id === "lumalabs-mcp") return lumaMcpCatalogProvider(draft);
   if (template.id === "accio-oauth" && draft.baseUrl !== "https://phoenix-gw.alibaba.com") {
     throw new Error("Accio OAuth 仅支持固定的 https://phoenix-gw.alibaba.com 地址。");

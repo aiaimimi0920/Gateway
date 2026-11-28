@@ -170,6 +170,7 @@ fn protected_product(
         || crate::routing::config::luma_mcp::owns(provider)
         || luma_web::owns(provider, credential)
         || provider.preset.as_deref() == Some("river-api")
+        || provider.preset.as_deref() == Some("zenmux-api")
         || crate::protocol::luma_inference::config::owns(provider)
         || provider
             .preset

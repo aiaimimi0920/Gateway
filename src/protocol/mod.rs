@@ -130,3 +130,4 @@ pub mod xfyun_websocket;
 // `crate::protocol::search_api`.
 pub use search_api as linkup;
 mod generation_parameters;
+pub mod zenmux;

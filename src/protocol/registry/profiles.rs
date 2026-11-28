@@ -88,6 +88,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "cohere-chat" => "cohere",
         "groq-openai" => "groq",
         "river-api" => "river",
+        "zenmux-api" => "zenmux",
         "agnes-api" => "agnes_api",
         "lumalabs-inference-api" => "lumalabs_inference",
         "sensenova-token-plan" => "sensenova_token_plan",

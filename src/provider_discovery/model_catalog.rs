@@ -37,6 +37,7 @@ pub enum CatalogProvider {
     Poe,
     Groq,
     River,
+    ZenMux,
     Agnes,
     SenseNova,
     CommandCode,
@@ -55,6 +56,7 @@ impl CatalogProvider {
             Self::Poe => POE_SOURCE,
             Self::Groq => GROQ_SOURCE,
             Self::River => RIVER_SOURCE,
+            Self::ZenMux => crate::protocol::zenmux::SOURCE,
             Self::Agnes => crate::protocol::agnes::SOURCE,
             Self::SenseNova => crate::protocol::sensenova::SOURCE,
             Self::CommandCode => crate::protocol::commandcode::SOURCE,
@@ -108,6 +110,10 @@ impl CatalogProvider {
                 preset == Some("river-api")
                     && base.trim_end_matches('/') == "https://api.river.ai/v1"
             }
+            Self::ZenMux => {
+                preset == Some("zenmux-api")
+                    && base.trim_end_matches('/') == crate::protocol::zenmux::BASE
+            }
             Self::Poe => {
                 preset == Some("poe-openai")
                     && matches!(
@@ -137,6 +143,7 @@ impl CatalogProvider {
             | Self::Poe
             | Self::Groq
             | Self::River
+            | Self::ZenMux
             | Self::SenseNova
             | Self::CommandCode
             | Self::Agnes
@@ -201,6 +208,7 @@ impl ModelCatalog {
                         CatalogProvider::Poe,
                         CatalogProvider::Groq,
                         CatalogProvider::River,
+                        CatalogProvider::ZenMux,
                         CatalogProvider::Agnes,
                         CatalogProvider::SenseNova,
                         CatalogProvider::CommandCode,
@@ -455,6 +463,9 @@ mod river_tests;
 #[cfg(test)]
 #[path = "model_catalog_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "zenmux_catalog_tests.rs"]
+mod zenmux_tests;
 
 #[cfg(all(test, feature = "line-sensenova-token-plan"))]
 #[path = "sensenova_catalog_tests.rs"]

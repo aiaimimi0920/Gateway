@@ -4,7 +4,7 @@ import type { ProviderCatalogDraft, ProviderCatalogTemplate } from "./providerCa
 
 // Typed OAuth/session and vendor material bindings remain owned by their existing dialogs.
 export function supportsCatalogApiKey(template: ProviderCatalogTemplate): boolean {
-  return Boolean(template.custom) || ["openai", "anthropic", "gemini-api", "groq-openai", "openrouter-openai", "nvidia-openai", "poe-openai", "cohere-chat", "vercel-ai-gateway"].includes(template.preset ?? "");
+  return Boolean(template.custom) || ["openai", "anthropic", "gemini-api", "groq-openai", "openrouter-openai", "zenmux-api", "nvidia-openai", "poe-openai", "cohere-chat", "vercel-ai-gateway"].includes(template.preset ?? "");
 }
 export function addCatalogFirstAccount(document: ConsoleRouteDocument, template: ProviderCatalogTemplate, draft: ProviderCatalogDraft): ConsoleRouteDocument {
   if (!draft.credentialId) return document;

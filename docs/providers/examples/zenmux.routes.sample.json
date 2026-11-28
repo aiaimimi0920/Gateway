@@ -1,0 +1,11 @@
+{
+  "providers": [{
+    "id": "zenmux-api",
+    "preset": "zenmux-api",
+    "base_url": "https://zenmux.ai/api/v1",
+    "explicit_credentials_only": true,
+    "credentials": [],
+    "supported_models": []
+  }],
+  "model_routes": []
+}

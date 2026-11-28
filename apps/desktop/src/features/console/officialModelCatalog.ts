@@ -5,9 +5,11 @@ import { isRecord } from "./routeDocument";
 import { applyModelSelection, modelSelectionSchema } from "./credentialModelSelection";
 import { isQwenProvider, qwenCatalogEndpoint } from "./qwenEndpoint";
 import { cloudflareEndpoint } from "./cloudflareWorkersAi";
+import { zenmux } from "./zenmuxCatalog";
 
 export const catalogSources = { gemini: "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", anthropic: "https://api.anthropic.com/v1/models?limit=1000", openai: "https://api.openai.com/v1/models", nvidia: "https://integrate.api.nvidia.com/v1/models",
   openrouter: "https://openrouter.ai/api/v1/models", poe: "https://api.poe.com/v1/models", mistral: "https://api.mistral.ai/v1/models",
+  zenmux: zenmux.modelsCatalogUrl!,
   groq: "https://api.groq.com/openai/v1/models", river: "https://api.river.ai/v1/models", agnes: "https://apihub.agnes-ai.com/v1/models", sensenova: "https://token.sensenova.cn/v1/models", commandcode: "https://api.commandcode.ai/provider/v1/models", cohere: "https://api.cohere.com/v1/models?endpoint=chat&page_size=1000" } as const;
 export type CatalogProviderKind = keyof typeof catalogSources | "qwen" | "cloudflare-workers-ai";
 export const officialCatalogSchema = z.object({
@@ -36,6 +38,7 @@ export type OfficialModelCatalog = z.infer<typeof officialCatalogSchema>;
 export type CatalogInput = { credentialId: string } | { providerId: string; apiKey: string; accountBaseUrl?: string };
 export type DiscoverProviderModels = (input: CatalogInput, signal?: AbortSignal) => Promise<OfficialModelCatalog>;
 export function officialCatalogBase(kind: CatalogProviderKind, base: string): boolean {
+  if (kind === "zenmux") return zenmux.isApprovedBaseUrl(base);
   if (kind === "qwen") return qwenCatalogEndpoint(base) !== null;
   if (kind === "cloudflare-workers-ai") return cloudflareEndpoint(base) !== null;
   if (kind === "mistral") return base.replace(/\/+$/, "") === "https://api.mistral.ai/v1";
@@ -53,6 +56,7 @@ export function officialCatalogBase(kind: CatalogProviderKind, base: string): bo
       : ["https://openrouter.ai", "https://openrouter.ai/api", "https://openrouter.ai/api/v1"]).includes(base.replace(/\/+$/, ""));
 }
 export function catalogProviderKind(provider: Record<string, unknown>): CatalogProviderKind | undefined {
+  if (provider.preset === zenmux.template.preset) return "zenmux";
   if (isQwenProvider(provider)) return "qwen";
   if (provider.preset === "cloudflare-workers-ai") return "cloudflare-workers-ai";
   if (provider.preset === "gemini-api") return "gemini";

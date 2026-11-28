@@ -72,6 +72,7 @@ pub(super) fn use_text_only_tool_bridge(
     !crate::protocol::dim_oauth::business::owns_payload(payload)
         && !crate::protocol::nous_portal::business::owns_payload(payload)
         && !crate::protocol::agnes::owns_payload(payload)
+        && !crate::protocol::zenmux::owns_payload(payload)
         && !crate::protocol::luma_inference::owns_payload(payload)
         && !crate::protocol::sensenova::owns_payload(payload)
         && !crate::protocol::commandcode::owns_payload(payload)

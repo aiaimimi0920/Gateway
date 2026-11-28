@@ -3,6 +3,9 @@ use super::profiles::line_for_adapter;
 use crate::routing::candidate::ProviderAccountPayload;
 
 pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredImplementationLine> {
+    if crate::protocol::zenmux::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::ZenMuxOfficialApi);
+    }
     if crate::protocol::commandcode::owns_payload(payload) {
         return Some(RefactoredImplementationLine::CommandCodeProviderApi);
     }

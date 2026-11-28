@@ -172,6 +172,30 @@ pub async fn read_agnes_model_catalog(
     .await
 }
 
+pub async fn read_zenmux_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    if !cfg!(feature = "line-zenmux-official-api") {
+        return Err(
+            GatewayError::conflict("ZenMux implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
+    read_catalog(
+        CatalogProvider::ZenMux,
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
+}
+
 pub async fn read_cohere_model_catalog(
     State(state): State<Arc<AppState>>,
     connect_info: Option<ConnectInfo<SocketAddr>>,

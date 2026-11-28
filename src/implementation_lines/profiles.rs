@@ -55,6 +55,7 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
             Some(RefactoredImplementationLine::GroqOpenAiOfficialVendorApi)
         }
         "river" | "river-api" => Some(RefactoredImplementationLine::RiverOfficialApi),
+        "zenmux" | "zenmux-api" => Some(RefactoredImplementationLine::ZenMuxOfficialApi),
         "agnes_api" | "agnes-api" => Some(RefactoredImplementationLine::AgnesOfficialApi),
         "lumalabs_inference" | "lumalabs-inference-api" => {
             Some(RefactoredImplementationLine::LumaLabsInferenceOfficialApi)

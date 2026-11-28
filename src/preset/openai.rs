@@ -137,6 +137,15 @@ pub fn river_api_preset() -> ProviderPreset {
     }
 }
 
+#[cfg(feature = "line-zenmux-official-api")]
+pub(super) fn zenmux_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some("bearer".into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset("zenmux-api")
+    }
+}
+
 /// Luma token inference has a separate Key and billing product from Agents media.
 pub fn lumalabs_inference_api_preset() -> ProviderPreset {
     ProviderPreset {

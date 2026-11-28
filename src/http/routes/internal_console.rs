@@ -14,7 +14,7 @@ pub use nvidia_catalog::{
     read_commandcode_model_catalog, read_gemini_model_catalog, read_groq_model_catalog,
     read_mistral_model_catalog, read_nvidia_model_catalog, read_openai_model_catalog,
     read_openrouter_model_catalog, read_poe_model_catalog, read_river_model_catalog,
-    read_sensenova_model_catalog,
+    read_sensenova_model_catalog, read_zenmux_model_catalog,
 };
 pub use qwen_catalog::read_qwen_model_catalog;
 mod accio_oauth;

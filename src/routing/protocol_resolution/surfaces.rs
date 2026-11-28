@@ -79,7 +79,9 @@ pub(crate) fn payload_supported_wire_protocol_families(
     {
         return families;
     }
-    if crate::protocol::commandcode::owns_payload(payload) {
+    if crate::protocol::commandcode::owns_payload(payload)
+        || crate::protocol::zenmux::owns_payload(payload)
+    {
         return vec![OPENAI_CHAT_FAMILY.to_string()];
     }
     if crate::protocol::sensenova::owns_payload(payload) {

@@ -47,6 +47,7 @@ runtime-defaults = [
     "line-cohere-chat-official-model-api",
     "line-groq-openai-official-vendor-api",
     "line-river-official-api",
+    "line-zenmux-official-api",
     "line-agnes-official-api",
     "line-minimax-m-plan",
     "line-sensenova-token-plan",
@@ -112,6 +113,7 @@ line-chatgpt-web-reverse = []
 line-cohere-chat-official-model-api = ["family-cohere-chat-official-api"]
 line-groq-openai-official-vendor-api = ["family-openai-compatible-official-api"]
 line-river-official-api = ["family-openai-compatible-official-api"]
+line-zenmux-official-api = ["family-openai-compatible-official-api"]
 line-agnes-official-api = ["family-openai-compatible-official-api"]
 line-minimax-m-plan = ["family-anthropic-compatible-official-api"]
 line-sensenova-token-plan = ["family-openai-compatible-official-api"]

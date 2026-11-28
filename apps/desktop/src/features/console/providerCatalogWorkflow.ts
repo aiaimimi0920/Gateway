@@ -54,7 +54,7 @@ export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): Catal
   const testPolicy = defaultTestPolicy();
   applySessionCatalogTestPolicy(template.id, testPolicy);
   // These directories are not free-call grants; keep automatic tests off and invent no model.
-  if (["lumalabs-inference-api", "sap-aicore-chat", "commandcode-api", "sensenova-token-plan", "minimax-m-plan", "minimax-m-plan-cn", "agnes-api", "river-api", "cloudflare-workers-ai", "dim-cn-oauth", "dim-global-oauth", "nous-portal-oauth", "lobsterai-session", "quick-oauth"].includes(template.id)) {
+  if (["lumalabs-inference-api", "sap-aicore-chat", "commandcode-api", "sensenova-token-plan", "minimax-m-plan", "minimax-m-plan-cn", "agnes-api", "river-api", "zenmux-api", "cloudflare-workers-ai", "dim-cn-oauth", "dim-global-oauth", "nous-portal-oauth", "lobsterai-session", "quick-oauth"].includes(template.id)) {
     testPolicy.automaticEnabled = false; testPolicy.models = template.id === "quick-oauth" ? ["smart"] : [];
     if (template.id === "quick-oauth") testPolicy.modelSelection = "selected";
     testPolicy.cases = [{ id: "connection", name: "连通", prompt: "Reply with only OK.", expectedAnswer: null, difficulty: 1, enabled: true }];

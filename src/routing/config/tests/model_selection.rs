@@ -14,6 +14,26 @@ fn document() -> RouteConfigYaml {
     .unwrap()
 }
 
+#[cfg(feature = "line-zenmux-official-api")]
+#[test]
+fn zenmux_catalog_routes_exact_slug_to_selected_account() {
+    let model = "org/MixedCase";
+    let doc = json!({"providers":[{"id":"zenmux","preset":"zenmux-api","base_url":crate::protocol::zenmux::BASE,
+        "explicit_credentials_only":true,"supported_models":[model],"credentials":[{"id":"fixture-account","api_key":"fixture-key",
+        "model_selection":{"fetched":[model],"manual":[]},
+        "model_catalog":{"sourceUrl":crate::protocol::zenmux::SOURCE,"checkedAt":"2026-11-28T00:00:00Z","models":[model]}}]}],
+        "model_routes":[{"pattern":model,"provider_ids":["zenmux"],"priority":10}]});
+    let store = make_store_from_yaml(&doc.to_string());
+    let candidates = store.resolve_candidates(Some(model));
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(
+        candidates[0].payload.credential_id.as_deref(),
+        Some("fixture-account")
+    );
+    assert_eq!(candidates[0].payload.api_key, "fixture-key");
+    assert!(store.resolve_candidates(Some("MixedCase")).is_empty());
+}
+
 #[test]
 fn model_selection_survives_repeat_reload_and_controls_candidates_without_verification() {
     let mut doc = document();

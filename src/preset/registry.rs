@@ -113,6 +113,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     }
     #[cfg(feature = "line-river-official-api")]
     presets.push(river_api_preset());
+    #[cfg(feature = "line-zenmux-official-api")]
+    presets.push(super::openai::zenmux_api_preset());
     #[cfg(feature = "line-agnes-official-api")]
     presets.push(agnes_api_preset());
     #[cfg(feature = "line-lumalabs-inference-official-api")]
